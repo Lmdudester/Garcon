@@ -1,0 +1,51 @@
+# Dependencies
+node_modules/
+
+# Build outputs
+dist/
+build/
+.turbo/
+*.tsbuildinfo
+
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Garcon data directory
+garcon-data/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+nul
+
+# Logs
+*.log
+logs/
+
+# Test coverage
+coverage/
+
+# Temp files
+*.tmp
+*.temp
+
+# Claude Code configuration
+.claude/
+CLAUDE.md
+
+# Planning documents
+IMPLEMENTATION_PLAN.md
+TECHNICAL_REQUIREMENTS.md
+
+# Garcon server data (if stored in project root)
+/servers/
+/backups/
+/templates/

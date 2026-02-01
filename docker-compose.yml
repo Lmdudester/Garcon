@@ -1,0 +1,21 @@
+version: '3.8'
+
+services:
+  garcon:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./garcon-data:/garcon-data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=production
+      - GARCON_DATA_DIR=/garcon-data
+      - PORT=3001
+      - HOST=0.0.0.0
+    restart: unless-stopped
+
+volumes:
+  garcon-data:

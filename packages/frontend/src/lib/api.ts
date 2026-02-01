@@ -1,0 +1,97 @@
+import type {
+  ServerResponse,
+  CreateServerRequest,
+  TemplateResponse,
+  BackupResponse,
+  CreateBackupRequest,
+  ApiErrorResponse
+} from '@garcon/shared';
+
+const API_BASE = '/api';
+
+class ApiError extends Error {
+  constructor(
+    public statusCode: number,
+    public code: string,
+    message: string,
+    public details?: Record<string, unknown>
+  ) {
+    super(message);
+    this.name = 'ApiError';
+  }
+}
+
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (!response.ok) {
+    const error = await response.json() as ApiErrorResponse;
+    throw new ApiError(
+      error.statusCode,
+      error.error,
+      error.message,
+      error.details
+    );
+  }
+
+  if (response.status === 204) {
+    return undefined as T;
+  }
+
+  return response.json() as Promise<T>;
+}
+
+async function get<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`);
+  return handleResponse<T>(response);
+}
+
+async function post<T, B = unknown>(path: string, body?: B): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'POST',
+    ...(body !== undefined && {
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    }),
+  });
+  return handleResponse<T>(response);
+}
+
+async function del<T>(path: string): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'DELETE',
+  });
+  return handleResponse<T>(response);
+}
+
+export const api = {
+  servers: {
+    list: () => get<ServerResponse[]>('/servers'),
+    get: (id: string) => get<ServerResponse>(`/servers/${id}`),
+    create: (data: CreateServerRequest) => post<ServerResponse>('/servers', data),
+    delete: (id: string) => del<void>(`/servers/${id}`),
+    start: (id: string) => post<ServerResponse>(`/servers/${id}/start`),
+    stop: (id: string) => post<ServerResponse>(`/servers/${id}/stop`),
+    restart: (id: string) => post<ServerResponse>(`/servers/${id}/restart`),
+    acknowledgeCrash: (id: string) => post<ServerResponse>(`/servers/${id}/acknowledge-crash`),
+    update: {
+      initiate: (id: string) => post<{ sourcePath: string; backupTimestamp: string }>(`/servers/${id}/update/initiate`),
+      apply: (id: string) => post<ServerResponse>(`/servers/${id}/update/apply`),
+      cancel: (id: string) => post<ServerResponse>(`/servers/${id}/update/cancel`),
+    },
+  },
+  templates: {
+    list: () => get<TemplateResponse[]>('/templates'),
+    get: (id: string) => get<TemplateResponse>(`/templates/${id}`),
+  },
+  backups: {
+    list: (serverId: string) => get<BackupResponse[]>(`/servers/${serverId}/backups`),
+    create: (serverId: string, data?: CreateBackupRequest) =>
+      post<BackupResponse>(`/servers/${serverId}/backups`, data),
+    delete: (serverId: string, timestamp: string) =>
+      del<void>(`/servers/${serverId}/backups/${encodeURIComponent(timestamp)}`),
+  },
+  health: {
+    check: () => get<{ status: string; timestamp: string; version: string }>('/health'),
+  },
+};
+
+export { ApiError };

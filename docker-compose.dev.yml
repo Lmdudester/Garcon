@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  backend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: backend
+    ports:
+      - "3001:3001"
+    volumes:
+      - ./packages/backend/src:/app/packages/backend/src
+      - ./packages/shared/src:/app/packages/shared/src
+      - ./garcon-data:/garcon-data
+      - /var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - NODE_ENV=development
+      - GARCON_DATA_DIR=/garcon-data
+      - PORT=3001
+      - HOST=0.0.0.0
+      - LOG_PRETTY=true
+    command: pnpm --filter @garcon/backend dev
+
+  frontend:
+    build:
+      context: .
+      dockerfile: Dockerfile.dev
+      target: frontend
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./packages/frontend/src:/app/packages/frontend/src
+      - ./packages/shared/src:/app/packages/shared/src
+    environment:
+      - NODE_ENV=development
+    command: pnpm --filter @garcon/frontend dev
+    depends_on:
+      - backend

@@ -1,0 +1,46 @@
+# Development Dockerfile with hot reloading
+
+FROM node:20-alpine AS base
+
+WORKDIR /app
+
+# Install pnpm
+RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
+
+# Install docker CLI
+RUN apk add --no-cache docker-cli
+
+# Copy package files
+COPY package.json pnpm-workspace.yaml pnpm-lock.yaml* ./
+COPY packages/shared/package.json ./packages/shared/
+COPY packages/backend/package.json ./packages/backend/
+COPY packages/frontend/package.json ./packages/frontend/
+
+# Install dependencies
+RUN pnpm install
+
+# Copy configuration files
+COPY tsconfig.base.json turbo.json ./
+COPY packages/shared/tsconfig.json ./packages/shared/
+COPY packages/backend/tsconfig.json ./packages/backend/
+COPY packages/frontend/tsconfig.json packages/frontend/tsconfig.node.json ./packages/frontend/
+COPY packages/frontend/vite.config.ts packages/frontend/postcss.config.js packages/frontend/tailwind.config.js ./packages/frontend/
+COPY packages/frontend/index.html ./packages/frontend/
+
+# Copy source files
+COPY packages/shared/src ./packages/shared/src
+COPY packages/backend/src ./packages/backend/src
+COPY packages/frontend/src ./packages/frontend/src
+
+# Build shared package
+RUN pnpm --filter @garcon/shared build
+
+# Backend target
+FROM base AS backend
+EXPOSE 3001
+CMD ["pnpm", "--filter", "@garcon/backend", "dev"]
+
+# Frontend target
+FROM base AS frontend
+EXPOSE 3000
+CMD ["pnpm", "--filter", "@garcon/frontend", "dev"]
