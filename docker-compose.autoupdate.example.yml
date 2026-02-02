@@ -1,0 +1,26 @@
+# Auto-updating Garcon Docker deployment
+# Copy this file to docker-compose.autoupdate.yml and update the paths below
+
+services:
+  garcon:
+    build:
+      context: .
+      dockerfile: Dockerfile.autoupdate
+    container_name: garcon-server
+    ports:
+      - "3001:3001"
+    volumes:
+      # Data directory - stored locally, not in the container
+      - ./garcon-data:/garcon-data
+      # Docker socket for managing game server containers
+      - //var/run/docker.sock:/var/run/docker.sock
+    environment:
+      - GARCON_DATA_DIR=/garcon-data
+      # IMPORTANT: Set this to the ABSOLUTE HOST PATH of your garcon-data folder
+      # This is required for Docker-in-Docker to mount game server volumes correctly
+      # Example Windows: C:/Users/YourName/path/to/Garcon/garcon-data
+      # Example Linux: /home/yourname/path/to/Garcon/garcon-data
+      - GARCON_HOST_DATA_DIR=/path/to/your/garcon-data
+      - PORT=3001
+      - HOST=0.0.0.0
+    restart: unless-stopped

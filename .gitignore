@@ -49,3 +49,6 @@ TECHNICAL_REQUIREMENTS.md
 /servers/
 /backups/
 /templates/
+
+# Local Docker deployment (contains machine-specific paths)
+docker-compose.autoupdate.yml

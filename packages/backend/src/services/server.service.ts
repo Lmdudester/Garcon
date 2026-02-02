@@ -204,6 +204,7 @@ class ServerService {
       updatedAt: new Date().toISOString(),
       ports: request.ports || defaultPorts,
       environment: { ...defaultEnvironment, ...request.environment },
+      updateStage: 'none',
       memory: request.memory,
       cpuLimit: request.cpuLimit
     };
@@ -266,7 +267,8 @@ class ServerService {
 
     try {
       const template = await templateService.getTemplate(state.config.templateId);
-      const serverPath = path.join(config.paths.serversDir, id);
+      // Use hostDataDir for Docker bind mounts (supports Docker-in-Docker)
+      const serverPath = path.join(config.paths.hostDataDir, 'servers', id);
 
       await dockerManager.createContainer(state.config, template, serverPath);
       await dockerManager.startContainer(id);

@@ -10,6 +10,7 @@ export interface Config {
   };
   paths: {
     dataDir: string;
+    hostDataDir: string; // Host path for Docker bind mounts (Docker-in-Docker)
     configDir: string;
     serversDir: string;
     backupsDir: string;
@@ -35,6 +36,12 @@ function getDataDir(): string {
   return process.env['GARCON_DATA_DIR'] || path.resolve(__dirname, '../../../../garcon-data');
 }
 
+function getHostDataDir(dataDir: string): string {
+  // For Docker-in-Docker: use GARCON_HOST_DATA_DIR for bind mounts
+  // This should be the path on the Docker host, not inside this container
+  return process.env['GARCON_HOST_DATA_DIR'] || dataDir;
+}
+
 function getDockerSocketPath(): string {
   if (process.env['DOCKER_HOST']) {
     return process.env['DOCKER_HOST'];
@@ -46,6 +53,7 @@ function getDockerSocketPath(): string {
 
 export function loadConfig(): Config {
   const dataDir = getDataDir();
+  const hostDataDir = getHostDataDir(dataDir);
 
   return {
     server: {
@@ -54,6 +62,7 @@ export function loadConfig(): Config {
     },
     paths: {
       dataDir,
+      hostDataDir,
       configDir: path.join(dataDir, 'config'),
       serversDir: path.join(dataDir, 'servers'),
       backupsDir: path.join(dataDir, 'backups'),

@@ -7,5 +7,6 @@ export const config = {
   serverHost: import.meta.env.VITE_SERVER_HOST || 'localhost',
 
   // WebSocket URL for real-time updates
-  wsUrl: import.meta.env.VITE_WS_URL || 'ws://localhost:3001/ws',
+  // If not set, WebSocketContext will auto-detect from window.location
+  wsUrl: import.meta.env.VITE_WS_URL || '',
 };

@@ -70,6 +70,37 @@ docker-compose -f docker-compose.dev.yml up
 docker-compose up -d
 ```
 
+### Production with Auto-Update
+
+For a containerized deployment that automatically pulls updates from GitHub on each restart:
+
+1. Copy the example compose file:
+   ```bash
+   cp docker-compose.autoupdate.example.yml docker-compose.autoupdate.yml
+   ```
+
+2. Edit `docker-compose.autoupdate.yml` and set `GARCON_HOST_DATA_DIR` to the **absolute path** of your garcon-data folder:
+   ```yaml
+   # Windows example:
+   - GARCON_HOST_DATA_DIR=C:/Users/YourName/path/to/Garcon/garcon-data
+
+   # Linux example:
+   - GARCON_HOST_DATA_DIR=/home/yourname/path/to/Garcon/garcon-data
+   ```
+
+3. Build and start:
+   ```bash
+   docker-compose -f docker-compose.autoupdate.yml up -d --build
+   ```
+
+4. To update Garcon, simply restart the container:
+   ```bash
+   docker restart garcon-server
+   ```
+   The container will pull the latest code from GitHub and rebuild before starting.
+
+**Note:** The `docker-compose.autoupdate.yml` file is gitignored because it contains machine-specific paths.
+
 ## How It Works
 
 ### Core Workflow
@@ -318,7 +349,8 @@ Connect to `/ws` for real-time updates.
 |----------|---------|-------------|
 | `PORT` | `3001` | Backend server port |
 | `HOST` | `0.0.0.0` | Backend server host |
-| `GARCON_DATA_DIR` | `./garcon-data` | Data directory path |
+| `GARCON_DATA_DIR` | `./garcon-data` | Data directory path (inside container) |
+| `GARCON_HOST_DATA_DIR` | (same as GARCON_DATA_DIR) | Host path for Docker-in-Docker volume mounts |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
 | `LOG_PRETTY` | `true` | Pretty print logs |
 | `MAX_BACKUPS_PER_SERVER` | `10` | Maximum backups to keep per server |
@@ -373,7 +405,9 @@ garcon/
 │   └── logs/                 # Application logs
 ├── docker-compose.yml        # Production deployment
 ├── docker-compose.dev.yml    # Development deployment
-└── Dockerfile                # Production image
+├── docker-compose.autoupdate.example.yml  # Auto-update deployment template
+├── Dockerfile                # Production image
+└── Dockerfile.autoupdate     # Auto-update image (clones from GitHub)
 ```
 
 ---
@@ -423,6 +457,29 @@ When a server crashes, Garcon preserves the container for debugging:
 - Validate YAML syntax (no tabs, proper indentation)
 - Check that `id` field is unique across all templates
 - Restart the backend to reload templates
+
+### Game Server Crashes Immediately (Docker Auto-Update)
+
+**Error:** "Unable to access jarfile server.jar" or similar file-not-found errors
+
+This typically means `GARCON_HOST_DATA_DIR` is not set correctly:
+
+1. The path must be the **absolute host path** to your garcon-data folder
+2. Use forward slashes on Windows (e.g., `C:/Users/...` not `C:\Users\...`)
+3. The path must match where Docker can access the files from the host
+
+Example for Windows:
+```yaml
+- GARCON_HOST_DATA_DIR=C:/Users/YourName/Documents/Garcon/garcon-data
+```
+
+### Remote Access Not Working
+
+If the UI loads but hangs or WebSocket won't connect from another machine:
+
+- The WebSocket URL auto-detects from `window.location`, so access via the correct IP/hostname
+- Ensure port 3001 is accessible (check firewall settings)
+- For Tailscale/VPN access, use the Tailscale IP address
 
 ---
 

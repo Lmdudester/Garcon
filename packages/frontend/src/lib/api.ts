@@ -73,7 +73,7 @@ export const api = {
     restart: (id: string) => post<ServerResponse>(`/servers/${id}/restart`),
     acknowledgeCrash: (id: string) => post<ServerResponse>(`/servers/${id}/acknowledge-crash`),
     update: {
-      initiate: (id: string) => post<{ sourcePath: string; backupTimestamp: string }>(`/servers/${id}/update/initiate`),
+      initiate: (id: string) => post<{ sourcePath: string; backupTimestamp: string; backupPath: string }>(`/servers/${id}/update/initiate`),
       apply: (id: string) => post<ServerResponse>(`/servers/${id}/update/apply`),
       cancel: (id: string) => post<ServerResponse>(`/servers/${id}/update/cancel`),
     },
