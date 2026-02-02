@@ -1,9 +1,12 @@
-import { Wifi, WifiOff } from 'lucide-react';
+import { Wifi, WifiOff, Shield, User } from 'lucide-react';
 import { useWebSocket } from '@/context/WebSocketContext';
+import { useViewMode } from '@/context/ViewModeContext';
 import { ImportServerDialog } from '@/components/servers/ImportServerDialog';
+import { Button } from '@/components/ui/button';
 
 export function Header() {
   const { isConnected } = useWebSocket();
+  const { isAdmin, toggleViewMode } = useViewMode();
 
   return (
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
@@ -28,7 +31,26 @@ export function Header() {
             )}
           </div>
 
-          <ImportServerDialog />
+          {isAdmin && <ImportServerDialog />}
+
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={toggleViewMode}
+            className={isAdmin ? 'text-amber-500 hover:text-amber-400' : 'text-muted-foreground hover:text-foreground'}
+          >
+            {isAdmin ? (
+              <>
+                <Shield className="h-4 w-4 mr-2" />
+                Admin View
+              </>
+            ) : (
+              <>
+                <User className="h-4 w-4 mr-2" />
+                User View
+              </>
+            )}
+          </Button>
         </div>
       </div>
     </header>

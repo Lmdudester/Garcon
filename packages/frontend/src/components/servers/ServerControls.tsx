@@ -9,6 +9,7 @@ import {
   DropdownMenuTrigger,
 } from '@/components/ui/dropdown-menu';
 import { useServers } from '@/context/ServerContext';
+import { useViewMode } from '@/context/ViewModeContext';
 import { Play, Square, RotateCcw, MoreVertical, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
 import { DeleteServerDialog } from './DeleteServerDialog';
 import { BackupDialog } from './BackupDialog';
@@ -20,6 +21,7 @@ interface ServerControlsProps {
 
 export function ServerControls({ server }: ServerControlsProps) {
   const { startServer, stopServer, restartServer, acknowledgeCrash } = useServers();
+  const { isAdmin } = useViewMode();
   const [isLoading, setIsLoading] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
@@ -115,7 +117,7 @@ export function ServerControls({ server }: ServerControlsProps) {
         </Button>
       )}
 
-      {isUpdating && (
+      {isAdmin && isUpdating && (
         <Button
           size="sm"
           variant="outline"
@@ -126,53 +128,59 @@ export function ServerControls({ server }: ServerControlsProps) {
         </Button>
       )}
 
-      <DropdownMenu>
-        <DropdownMenuTrigger asChild>
-          <Button size="sm" variant="ghost" disabled={isTransitioning}>
-            <MoreVertical className="h-4 w-4" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuItem onClick={() => setBackupDialogOpen(true)}>
-            <Download className="h-4 w-4 mr-2" />
-            Backups
-          </DropdownMenuItem>
-          <DropdownMenuItem
-            onClick={() => setUpdateDialogOpen(true)}
-            disabled={isRunning || isUpdating}
-          >
-            <RefreshCw className="h-4 w-4 mr-2" />
-            Update Server
-          </DropdownMenuItem>
-          <DropdownMenuSeparator />
-          <DropdownMenuItem
-            onClick={() => setDeleteDialogOpen(true)}
-            className="text-destructive"
-            disabled={isRunning}
-          >
-            <Trash2 className="h-4 w-4 mr-2" />
-            Delete
-          </DropdownMenuItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
+      {isAdmin && (
+        <DropdownMenu>
+          <DropdownMenuTrigger asChild>
+            <Button size="sm" variant="ghost" disabled={isTransitioning}>
+              <MoreVertical className="h-4 w-4" />
+            </Button>
+          </DropdownMenuTrigger>
+          <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setBackupDialogOpen(true)}>
+              <Download className="h-4 w-4 mr-2" />
+              Backups
+            </DropdownMenuItem>
+            <DropdownMenuItem
+              onClick={() => setUpdateDialogOpen(true)}
+              disabled={isRunning || isUpdating}
+            >
+              <RefreshCw className="h-4 w-4 mr-2" />
+              Update Server
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              onClick={() => setDeleteDialogOpen(true)}
+              className="text-destructive"
+              disabled={isRunning}
+            >
+              <Trash2 className="h-4 w-4 mr-2" />
+              Delete
+            </DropdownMenuItem>
+          </DropdownMenuContent>
+        </DropdownMenu>
+      )}
 
-      <DeleteServerDialog
-        server={server}
-        open={deleteDialogOpen}
-        onOpenChange={setDeleteDialogOpen}
-      />
+      {isAdmin && (
+        <>
+          <DeleteServerDialog
+            server={server}
+            open={deleteDialogOpen}
+            onOpenChange={setDeleteDialogOpen}
+          />
 
-      <BackupDialog
-        server={server}
-        open={backupDialogOpen}
-        onOpenChange={setBackupDialogOpen}
-      />
+          <BackupDialog
+            server={server}
+            open={backupDialogOpen}
+            onOpenChange={setBackupDialogOpen}
+          />
 
-      <UpdateWorkflow
-        server={server}
-        open={updateDialogOpen}
-        onOpenChange={setUpdateDialogOpen}
-      />
+          <UpdateWorkflow
+            server={server}
+            open={updateDialogOpen}
+            onOpenChange={setUpdateDialogOpen}
+          />
+        </>
+      )}
     </div>
   );
 }

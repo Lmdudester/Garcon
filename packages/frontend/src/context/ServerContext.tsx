@@ -31,7 +31,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
   const [error, setError] = React.useState<string | null>(null);
 
   const { toast } = useToast();
-  const { onServerStatus, onServerUpdate } = useWebSocket();
+  const { isConnected, onServerStatus, onServerUpdate } = useWebSocket();
 
   const refreshServers = React.useCallback(async () => {
     try {
@@ -63,6 +63,22 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     };
     load();
   }, [refreshServers, refreshTemplates]);
+
+  // Refresh server data when WebSocket connects to ensure we have latest status
+  React.useEffect(() => {
+    if (isConnected) {
+      refreshServers();
+    }
+  }, [isConnected, refreshServers]);
+
+  // Periodically refresh server data to avoid stale status
+  React.useEffect(() => {
+    const interval = setInterval(() => {
+      refreshServers();
+    }, 30000); // Refresh every 30 seconds
+
+    return () => clearInterval(interval);
+  }, [refreshServers]);
 
   React.useEffect(() => {
     const unsubStatus = onServerStatus((message) => {
