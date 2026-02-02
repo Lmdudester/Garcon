@@ -111,7 +111,7 @@ export function ImportServerDialog() {
       if (!isOpen) resetForm();
     }}>
       <DialogTrigger asChild>
-        <Button>
+        <Button variant="outline" className="border-2 border-cyan-500/70 text-cyan-500/70 font-bold hover:bg-cyan-500/10 hover:text-cyan-400/80">
           <Plus className="h-4 w-4 mr-2" />
           Add Server
         </Button>

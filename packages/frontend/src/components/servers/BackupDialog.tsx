@@ -165,7 +165,7 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
                     {deleting === backup.timestamp ? (
                       <Loader2 className="h-4 w-4 animate-spin" />
                     ) : (
-                      <Trash2 className="h-4 w-4 text-destructive" />
+                      <Trash2 className="h-4 w-4 text-red-500" />
                     )}
                   </Button>
                 </div>
