@@ -46,3 +46,49 @@ export function formatDate(dateString: string): string {
     minute: '2-digit'
   });
 }
+
+export function copyToClipboard(text: string): boolean {
+  // Try modern clipboard API first (requires HTTPS or localhost)
+  if (navigator.clipboard && window.isSecureContext) {
+    navigator.clipboard.writeText(text);
+    return true;
+  }
+
+  // Fallback for non-HTTPS contexts (e.g., Tailscale/LAN access)
+  // Must be synchronous within user gesture for execCommand to work
+  const textArea = document.createElement('textarea');
+  textArea.value = text;
+
+  // Position off-screen but keep it functional
+  textArea.style.position = 'fixed';
+  textArea.style.left = '-9999px';
+  textArea.style.top = '0';
+  textArea.style.width = '2em';
+  textArea.style.height = '2em';
+  textArea.style.padding = '0';
+  textArea.style.border = 'none';
+  textArea.style.outline = 'none';
+  textArea.style.boxShadow = 'none';
+  textArea.style.background = 'transparent';
+  // Important: do NOT set opacity or pointerEvents - can break copy
+
+  document.body.appendChild(textArea);
+  textArea.focus();
+  textArea.select();
+
+  let success = false;
+  try {
+    success = document.execCommand('copy');
+  } catch {
+    success = false;
+  }
+
+  document.body.removeChild(textArea);
+
+  // If copy failed, prompt user to copy manually
+  if (!success) {
+    window.prompt('Copy this text manually:', text);
+  }
+
+  return success;
+}

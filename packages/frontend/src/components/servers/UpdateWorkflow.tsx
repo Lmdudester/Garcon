@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useServers } from '@/context/ServerContext';
 import { useToast } from '@/context/ToastContext';
+import { copyToClipboard } from '@/lib/utils';
 import { CheckCircle2, Circle, Loader2, FolderOpen, XCircle, Archive } from 'lucide-react';
 
 interface UpdateWorkflowProps {
@@ -109,22 +110,31 @@ export function UpdateWorkflow({ server, open, onOpenChange }: UpdateWorkflowPro
               {stage === 'initiated' && backupPath && (
                 <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
                   <Archive className="h-4 w-4 text-green-500 shrink-0" />
-                  <a
-                    href={`file:///${backupPath.replace(/\\/g, '/')}`}
-                    className="text-xs break-all text-blue-500 hover:text-blue-700 hover:underline"
+                  <button
+                    type="button"
+                    className="text-xs break-all text-blue-500 hover:text-blue-700 hover:underline text-left"
                     onClick={(e) => {
                       e.preventDefault();
-                      navigator.clipboard.writeText(backupPath);
-                      toast({
-                        title: 'Copied',
-                        description: 'Backup path copied to clipboard',
-                        variant: 'default'
-                      });
+                      e.stopPropagation();
+                      const success = copyToClipboard(backupPath);
+                      if (success) {
+                        toast({
+                          title: 'Copied',
+                          description: 'Backup path copied to clipboard',
+                          variant: 'default'
+                        });
+                      } else {
+                        toast({
+                          title: 'Copy failed',
+                          description: 'Could not copy to clipboard',
+                          variant: 'destructive'
+                        });
+                      }
                     }}
                     title="Click to copy backup path"
                   >
                     {backupPath}
-                  </a>
+                  </button>
                 </div>
               )}
             </div>
@@ -140,24 +150,31 @@ export function UpdateWorkflow({ server, open, onOpenChange }: UpdateWorkflowPro
               {stage === 'initiated' && (
                 <div className="mt-2 p-2 bg-muted rounded flex items-center gap-2">
                   <FolderOpen className="h-4 w-4 text-blue-500 shrink-0" />
-                  <a
-                    href={`file:///${sourcePath.replace(/\\/g, '/')}`}
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-xs break-all text-blue-500 hover:text-blue-700 hover:underline"
+                  <button
+                    type="button"
+                    className="text-xs break-all text-blue-500 hover:text-blue-700 hover:underline text-left"
                     onClick={(e) => {
                       e.preventDefault();
-                      navigator.clipboard.writeText(sourcePath);
-                      toast({
-                        title: 'Copied',
-                        description: 'File path copied to clipboard',
-                        variant: 'default'
-                      });
+                      e.stopPropagation();
+                      const success = copyToClipboard(sourcePath);
+                      if (success) {
+                        toast({
+                          title: 'Copied',
+                          description: 'File path copied to clipboard',
+                          variant: 'default'
+                        });
+                      } else {
+                        toast({
+                          title: 'Copy failed',
+                          description: 'Could not copy to clipboard',
+                          variant: 'destructive'
+                        });
+                      }
                     }}
                     title="Click to copy path"
                   >
                     {sourcePath}
-                  </a>
+                  </button>
                 </div>
               )}
             </div>

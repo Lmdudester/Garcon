@@ -1,5 +1,5 @@
 import type { ServerResponse } from '@garcon/shared';
-import { formatUptime } from '@/lib/utils';
+import { formatUptime, copyToClipboard } from '@/lib/utils';
 import { config } from '@/lib/config';
 import { useToast } from '@/context/ToastContext';
 import { Clock, Tag, Copy } from 'lucide-react';
@@ -21,12 +21,20 @@ export function ServerInfo({ server }: ServerInfoProps) {
 
   const handleCopyPort = (port: { host: number; protocol: string }) => {
     const address = formatPortCopy(port);
-    navigator.clipboard.writeText(address);
-    toast({
-      title: 'Copied',
-      description: `${address} copied to clipboard`,
-      variant: 'default'
-    });
+    const success = copyToClipboard(address);
+    if (success) {
+      toast({
+        title: 'Copied',
+        description: `${address} copied to clipboard`,
+        variant: 'default'
+      });
+    } else {
+      toast({
+        title: 'Copy failed',
+        description: 'Could not copy to clipboard',
+        variant: 'destructive'
+      });
+    }
   };
 
   return (
@@ -43,7 +51,12 @@ export function ServerInfo({ server }: ServerInfoProps) {
             {server.ports.map((p, i) => (
               <button
                 key={i}
-                onClick={() => handleCopyPort(p)}
+                type="button"
+                onClick={(e) => {
+                  e.preventDefault();
+                  e.stopPropagation();
+                  handleCopyPort(p);
+                }}
                 className="text-blue-500 hover:text-blue-700 hover:underline cursor-pointer"
                 title="Click to copy address"
               >

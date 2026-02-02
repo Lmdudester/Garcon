@@ -3,8 +3,8 @@
 
 export const config = {
   // The host IP/hostname to display for server connections (e.g., Tailscale IP)
-  // Defaults to 'localhost' if not specified
-  serverHost: import.meta.env.VITE_SERVER_HOST || 'localhost',
+  // Auto-detects from current URL, or override with VITE_SERVER_HOST
+  serverHost: import.meta.env.VITE_SERVER_HOST || window.location.hostname,
 
   // WebSocket URL for real-time updates
   // If not set, WebSocketContext will auto-detect from window.location

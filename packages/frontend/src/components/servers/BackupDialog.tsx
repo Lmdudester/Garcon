@@ -10,7 +10,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
-import { formatDate, formatBytes } from '@/lib/utils';
+import { formatDate, formatBytes, copyToClipboard } from '@/lib/utils';
 import { Download, Trash2, Plus, Loader2, FolderOpen } from 'lucide-react';
 
 interface BackupDialogProps {
@@ -137,23 +137,32 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
                       <p className="text-xs text-muted-foreground">
                         {backup.type} {backup.size ? `- ${formatBytes(backup.size)}` : ''}
                       </p>
-                      <a
-                        href={`file:///${backup.filePath.replace(/\\/g, '/')}`}
+                      <button
+                        type="button"
                         className="flex items-center gap-1 text-xs text-blue-500 hover:text-blue-700 hover:underline mt-1"
                         onClick={(e) => {
                           e.preventDefault();
-                          navigator.clipboard.writeText(backup.filePath);
-                          toast({
-                            title: 'Copied',
-                            description: 'File path copied to clipboard',
-                            variant: 'default'
-                          });
+                          e.stopPropagation();
+                          const success = copyToClipboard(backup.filePath);
+                          if (success) {
+                            toast({
+                              title: 'Copied',
+                              description: 'File path copied to clipboard',
+                              variant: 'default'
+                            });
+                          } else {
+                            toast({
+                              title: 'Copy failed',
+                              description: 'Could not copy to clipboard',
+                              variant: 'destructive'
+                            });
+                          }
                         }}
                         title={backup.filePath}
                       >
                         <FolderOpen className="h-3 w-3" />
                         <span className="truncate max-w-[300px]">{backup.filePath}</span>
-                      </a>
+                      </button>
                     </div>
                   </div>
                   <Button
