@@ -2,37 +2,23 @@
 FROM node:20-alpine
 
 # Install required tools
-RUN apk add --no-cache git docker-cli
+RUN apk add --no-cache git docker-cli bash
 
 # Install pnpm
 RUN corepack enable && corepack prepare pnpm@9.0.0 --activate
 
 # Create directories
-RUN mkdir -p /app /garcon-data
+RUN mkdir -p /app/src /garcon-data
 
 WORKDIR /app
 
-# Environment - set NODE_ENV after build so devDependencies are installed
+# Environment
 ENV GARCON_DATA_DIR=/garcon-data
+
+# Copy entrypoint and fix line endings
+COPY scripts/entrypoint-autoupdate.sh /entrypoint.sh
+RUN sed -i 's/\r$//' /entrypoint.sh && chmod +x /entrypoint.sh
 
 EXPOSE 3001
 
-# Startup script: clone or pull, install, build, run
-CMD ["/bin/sh", "-c", "\
-  echo '=== Garcon Auto-Update Startup ===' && \
-  if [ -d .git ]; then \
-    echo 'Existing repo found, pulling updates...' && \
-    git fetch origin && \
-    git reset --hard origin/master; \
-  else \
-    echo 'Cloning Garcon from GitHub...' && \
-    git clone https://github.com/Lmdudester/Garcon.git .; \
-  fi && \
-  echo '=== Installing dependencies ===' && \
-  pnpm install --frozen-lockfile && \
-  echo '=== Building ===' && \
-  pnpm --filter @garcon/shared build && \
-  pnpm --filter @garcon/backend build && \
-  pnpm --filter @garcon/frontend build && \
-  echo '=== Starting Garcon ===' && \
-  NODE_ENV=production node packages/backend/dist/index.js"]
+ENTRYPOINT ["/entrypoint.sh"]
