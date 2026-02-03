@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { CreateServerRequestSchema } from '@garcon/shared';
+import { CreateServerRequestSchema, UpdateServerRequestSchema } from '@garcon/shared';
 import { serverService } from '../services/server.service.js';
 
 export async function serverRoutes(app: FastifyInstance) {
@@ -20,6 +20,11 @@ export async function serverRoutes(app: FastifyInstance) {
   app.delete<{ Params: { id: string } }>('/servers/:id', async (request, reply) => {
     await serverService.deleteServer(request.params.id);
     return reply.status(204).send();
+  });
+
+  app.patch<{ Params: { id: string } }>('/servers/:id', async (request) => {
+    const body = UpdateServerRequestSchema.parse(request.body);
+    return serverService.updateServer(request.params.id, body);
   });
 
   app.post<{ Params: { id: string } }>('/servers/:id/start', async (request) => {

@@ -5,12 +5,14 @@ export {
   ServerConfigSchema,
   ServerSchema,
   CreateServerRequestSchema,
+  UpdateServerRequestSchema,
   ServerResponseSchema,
   type ServerStatus,
   type UpdateStage,
   type ServerConfig,
   type Server,
   type CreateServerRequest,
+  type UpdateServerRequest,
   type ServerResponse
 } from './types/server.js';
 

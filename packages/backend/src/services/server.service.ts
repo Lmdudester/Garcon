@@ -5,6 +5,7 @@ import type {
   Server,
   ServerResponse,
   CreateServerRequest,
+  UpdateServerRequest,
   ServerStatus,
   UpdateStage
 } from '@garcon/shared';
@@ -247,6 +248,35 @@ class ServerService {
     websocketService.broadcastServerUpdate(id, 'deleted');
 
     logger.info({ serverId: id }, 'Server deleted');
+  }
+
+  async updateServer(id: string, request: UpdateServerRequest): Promise<ServerResponse> {
+    const state = this.servers.get(id);
+    if (!state) {
+      throw new NotFoundError('Server', id);
+    }
+
+    let updated = false;
+
+    if (request.name !== undefined && request.name !== state.config.name) {
+      state.config.name = request.name;
+      updated = true;
+    }
+
+    if (updated) {
+      state.config.updatedAt = new Date().toISOString();
+
+      const serverPath = path.join(config.paths.serversDir, id);
+      const configPath = path.join(serverPath, GARCON_CONFIG_FILE);
+      await writeYaml(configPath, state.config);
+
+      websocketService.broadcastServerUpdate(id, 'updated');
+
+      logger.info({ serverId: id, name: state.config.name }, 'Server updated');
+    }
+
+    const template = templateService.getTemplateSync(state.config.templateId);
+    return this.toResponse(id, state, template?.name);
   }
 
   async startServer(id: string): Promise<ServerResponse> {

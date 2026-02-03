@@ -87,3 +87,9 @@ export const ServerResponseSchema = z.object({
 });
 
 export type ServerResponse = z.infer<typeof ServerResponseSchema>;
+
+export const UpdateServerRequestSchema = z.object({
+  name: z.string().min(1).max(100).optional(),
+});
+
+export type UpdateServerRequest = z.infer<typeof UpdateServerRequestSchema>;

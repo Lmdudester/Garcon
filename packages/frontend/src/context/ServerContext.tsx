@@ -1,5 +1,5 @@
 import * as React from 'react';
-import type { ServerResponse, CreateServerRequest, TemplateResponse } from '@garcon/shared';
+import type { ServerResponse, CreateServerRequest, UpdateServerRequest, TemplateResponse } from '@garcon/shared';
 import { api, ApiError } from '@/lib/api';
 import { useToast } from './ToastContext';
 import { useWebSocket } from './WebSocketContext';
@@ -12,6 +12,7 @@ interface ServerContextValue {
   refreshServers: () => Promise<void>;
   refreshTemplates: () => Promise<void>;
   importServer: (data: CreateServerRequest) => Promise<ServerResponse>;
+  editServer: (id: string, data: UpdateServerRequest) => Promise<ServerResponse>;
   deleteServer: (id: string) => Promise<void>;
   startServer: (id: string) => Promise<void>;
   stopServer: (id: string) => Promise<void>;
@@ -117,6 +118,19 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       return server;
     } catch (err) {
       const message = err instanceof ApiError ? err.message : 'Failed to import server';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+      throw err;
+    }
+  }, [toast]);
+
+  const editServer = React.useCallback(async (id: string, data: UpdateServerRequest) => {
+    try {
+      const server = await api.servers.edit(id, data);
+      setServers(prev => prev.map(s => s.id === id ? server : s));
+      toast({ title: 'Success', description: 'Server updated successfully', variant: 'success' });
+      return server;
+    } catch (err) {
+      const message = err instanceof ApiError ? err.message : 'Failed to update server';
       toast({ title: 'Error', description: message, variant: 'destructive' });
       throw err;
     }
@@ -234,6 +248,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         refreshServers,
         refreshTemplates,
         importServer,
+        editServer,
         deleteServer,
         startServer,
         stopServer,

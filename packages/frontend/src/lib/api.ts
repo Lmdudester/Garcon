@@ -1,6 +1,7 @@
 import type {
   ServerResponse,
   CreateServerRequest,
+  UpdateServerRequest,
   TemplateResponse,
   BackupResponse,
   CreateBackupRequest,
@@ -62,11 +63,21 @@ async function del<T>(path: string): Promise<T> {
   return handleResponse<T>(response);
 }
 
+async function patch<T, B = unknown>(path: string, body: B): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'PATCH',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(response);
+}
+
 export const api = {
   servers: {
     list: () => get<ServerResponse[]>('/servers'),
     get: (id: string) => get<ServerResponse>(`/servers/${id}`),
     create: (data: CreateServerRequest) => post<ServerResponse>('/servers', data),
+    edit: (id: string, data: UpdateServerRequest) => patch<ServerResponse>(`/servers/${id}`, data),
     delete: (id: string) => del<void>(`/servers/${id}`),
     start: (id: string) => post<ServerResponse>(`/servers/${id}/start`),
     stop: (id: string) => post<ServerResponse>(`/servers/${id}/stop`),

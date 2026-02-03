@@ -10,10 +10,11 @@ import {
 } from '@/components/ui/dropdown-menu';
 import { useServers } from '@/context/ServerContext';
 import { useViewMode } from '@/context/ViewModeContext';
-import { Play, Square, RotateCcw, MoreVertical, Download, RefreshCw, Trash2, AlertTriangle } from 'lucide-react';
+import { Play, Square, RotateCcw, MoreVertical, Download, RefreshCw, Trash2, AlertTriangle, Pencil } from 'lucide-react';
 import { DeleteServerDialog } from './DeleteServerDialog';
 import { BackupDialog } from './BackupDialog';
 import { UpdateWorkflow } from './UpdateWorkflow';
+import { EditServerDialog } from './EditServerDialog';
 
 interface ServerControlsProps {
   server: ServerResponse;
@@ -23,6 +24,7 @@ export function ServerControls({ server }: ServerControlsProps) {
   const { startServer, stopServer, restartServer, acknowledgeCrash } = useServers();
   const { isAdmin } = useViewMode();
   const [isLoading, setIsLoading] = useState(false);
+  const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
@@ -136,6 +138,10 @@ export function ServerControls({ server }: ServerControlsProps) {
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
+            <DropdownMenuItem onClick={() => setEditDialogOpen(true)}>
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit
+            </DropdownMenuItem>
             <DropdownMenuItem onClick={() => setBackupDialogOpen(true)}>
               <Download className="h-4 w-4 mr-2" />
               Backups
@@ -162,6 +168,12 @@ export function ServerControls({ server }: ServerControlsProps) {
 
       {isAdmin && (
         <>
+          <EditServerDialog
+            server={server}
+            open={editDialogOpen}
+            onOpenChange={setEditDialogOpen}
+          />
+
           <DeleteServerDialog
             server={server}
             open={deleteDialogOpen}
