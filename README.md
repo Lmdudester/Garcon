@@ -2,6 +2,8 @@
 
 Garcon is a locally-hosted web application for managing game servers via Docker. It provides a simple interface to import, start/stop, backup, and update game servers running in isolated Docker containers.
 
+**Note:** This is mostly a pet project for me, but I wanted to do something I'd actually consider using myself. I'm experimenting with practical uses for Claude Code to advance my knowledge in the area.
+
 ## Table of Contents
 
 - [Features](#features)
