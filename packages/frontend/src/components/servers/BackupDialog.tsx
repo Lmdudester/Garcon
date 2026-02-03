@@ -52,8 +52,8 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
   const handleCreate = async () => {
     setCreating(true);
     try {
-      const backup = await api.backups.create(server.id);
-      setBackups(prev => [backup, ...prev]);
+      await api.backups.create(server.id);
+      await loadBackups(); // Re-fetch to reflect retention policy
       toast({
         title: 'Success',
         description: 'Backup created successfully',

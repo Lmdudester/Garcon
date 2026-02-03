@@ -23,7 +23,7 @@ export interface Config {
     defaultStopTimeout: number;
   };
   backup: {
-    maxBackupsPerServer: number;
+    maxBackupsPerType: number;
     autoBackupOnStop: boolean;
   };
   logging: {
@@ -75,7 +75,7 @@ export function loadConfig(): Config {
       defaultStopTimeout: 30
     },
     backup: {
-      maxBackupsPerServer: parseInt(process.env['MAX_BACKUPS_PER_SERVER'] || '10', 10),
+      maxBackupsPerType: parseInt(process.env['MAX_BACKUPS_PER_TYPE'] || '5', 10),
       autoBackupOnStop: process.env['AUTO_BACKUP_ON_STOP'] !== 'false'
     },
     logging: {

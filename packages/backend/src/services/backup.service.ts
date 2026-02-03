@@ -181,21 +181,35 @@ class BackupService {
 
   private async enforceRetentionPolicy(serverId: string): Promise<void> {
     const backups = await this.listBackups(serverId);
-    const maxBackups = config.backup.maxBackupsPerServer;
+    const maxPerType = config.backup.maxBackupsPerType;
 
-    if (backups.length <= maxBackups) {
-      return;
+    // Group backups by type
+    const byType = new Map<BackupType, BackupResponse[]>();
+    for (const backup of backups) {
+      const list = byType.get(backup.type) || [];
+      list.push(backup);
+      byType.set(backup.type, list);
     }
 
-    const toDelete = backups.slice(maxBackups);
+    // Delete oldest backups exceeding the limit for each type
+    const toDelete: BackupResponse[] = [];
+    for (const [type, typeBackups] of byType) {
+      if (typeBackups.length > maxPerType) {
+        // Backups are already sorted newest-first from listBackups()
+        toDelete.push(...typeBackups.slice(maxPerType));
+      }
+    }
+
     for (const backup of toDelete) {
       await this.deleteBackup(serverId, backup.timestamp);
     }
 
-    logger.info(
-      { serverId, deleted: toDelete.length },
-      'Retention policy enforced'
-    );
+    if (toDelete.length > 0) {
+      logger.info(
+        { serverId, deleted: toDelete.length },
+        'Retention policy enforced'
+      );
+    }
   }
 }
 
