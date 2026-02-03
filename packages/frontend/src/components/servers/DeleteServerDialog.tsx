@@ -49,7 +49,7 @@ export function DeleteServerDialog({ server, open, onOpenChange }: DeleteServerD
           <AlertDialogAction
             onClick={handleDelete}
             disabled={isDeleting}
-            className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            className="bg-red-500 text-white hover:bg-red-600"
           >
             {isDeleting ? 'Deleting...' : 'Delete'}
           </AlertDialogAction>
