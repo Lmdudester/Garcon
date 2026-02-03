@@ -199,6 +199,7 @@ class ServerService {
     const serverConfig: ServerConfig = {
       id: serverId,
       name: request.name,
+      description: request.description,
       templateId: request.templateId,
       sourcePath: request.sourcePath,
       createdAt: new Date().toISOString(),
@@ -260,6 +261,11 @@ class ServerService {
 
     if (request.name !== undefined && request.name !== state.config.name) {
       state.config.name = request.name;
+      updated = true;
+    }
+
+    if (request.description !== undefined && request.description !== state.config.description) {
+      state.config.description = request.description;
       updated = true;
     }
 
@@ -507,6 +513,7 @@ class ServerService {
     return {
       id,
       name: state.config.name,
+      description: state.config.description,
       templateId: state.config.templateId,
       templateName,
       status: state.status,

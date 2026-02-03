@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import { useServers } from '@/context/ServerContext';
 
 interface EditServerDialogProps {
@@ -21,6 +22,7 @@ interface EditServerDialogProps {
 
 export function EditServerDialog({ server, open, onOpenChange }: EditServerDialogProps) {
   const [name, setName] = useState(server.name);
+  const [description, setDescription] = useState(server.description || '');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { editServer } = useServers();
@@ -29,16 +31,20 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
   useEffect(() => {
     if (open) {
       setName(server.name);
+      setDescription(server.description || '');
     }
-  }, [open, server.name]);
+  }, [open, server.name, server.description]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || name === server.name) return;
+    if (!name || !hasChanges) return;
 
     setIsSubmitting(true);
     try {
-      await editServer(server.id, { name });
+      await editServer(server.id, {
+        name,
+        description: description || undefined
+      });
       onOpenChange(false);
     } catch {
       // Error is handled by the context
@@ -47,7 +53,7 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
     }
   };
 
-  const hasChanges = name !== server.name;
+  const hasChanges = name !== server.name || description !== (server.description || '');
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -70,6 +76,20 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
                 onChange={(e) => setName(e.target.value)}
                 required
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="A brief description of this server..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, 250))}
+                maxLength={250}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                {description.length}/250 characters
+              </p>
             </div>
           </div>
           <DialogFooter>

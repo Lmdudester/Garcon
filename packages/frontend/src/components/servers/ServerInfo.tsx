@@ -2,7 +2,7 @@ import type { ServerResponse } from '@garcon/shared';
 import { formatUptime, copyToClipboard } from '@/lib/utils';
 import { config } from '@/lib/config';
 import { useToast } from '@/context/ToastContext';
-import { Clock, Tag, Copy } from 'lucide-react';
+import { Clock, Tag, Copy, FileText } from 'lucide-react';
 
 interface ServerInfoProps {
   server: ServerResponse;
@@ -39,6 +39,13 @@ export function ServerInfo({ server }: ServerInfoProps) {
 
   return (
     <div className="space-y-2 text-sm text-muted-foreground">
+      {server.description && (
+        <div className="flex items-start gap-2">
+          <FileText className="h-4 w-4 mt-0.5 shrink-0" />
+          <span className="line-clamp-2 whitespace-pre-line">{server.description}</span>
+        </div>
+      )}
+
       <div className="flex items-center gap-2">
         <Tag className="h-4 w-4" />
         <span>{server.templateName || server.templateId}</span>

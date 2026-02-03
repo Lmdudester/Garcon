@@ -12,6 +12,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -31,6 +32,7 @@ interface PortMapping {
 export function ImportServerDialog() {
   const [open, setOpen] = useState(false);
   const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [sourcePath, setSourcePath] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [ports, setPorts] = useState<PortMapping[]>([]);
@@ -65,6 +67,7 @@ export function ImportServerDialog() {
     try {
       await importServer({
         name,
+        description: description || undefined,
         sourcePath,
         templateId,
         ports: ports.map(p => ({
@@ -84,6 +87,7 @@ export function ImportServerDialog() {
 
   const resetForm = () => {
     setName('');
+    setDescription('');
     setSourcePath('');
     setTemplateId('');
     setPorts([]);
@@ -135,6 +139,20 @@ export function ImportServerDialog() {
                 onChange={(e) => setName(e.target.value)}
                 required
               />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="description">Description (optional)</Label>
+              <Textarea
+                id="description"
+                placeholder="A brief description of this server..."
+                value={description}
+                onChange={(e) => setDescription(e.target.value.slice(0, 250))}
+                maxLength={250}
+                className="resize-none"
+              />
+              <p className="text-xs text-muted-foreground">
+                {description.length}/250 characters
+              </p>
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sourcePath">Source Folder Path</Label>

@@ -23,6 +23,7 @@ export type UpdateStage = z.infer<typeof UpdateStageSchema>;
 export const ServerConfigSchema = z.object({
   id: z.string().min(1),
   name: z.string().min(1).max(100),
+  description: z.string().max(250).optional(),
   templateId: z.string(),
   sourcePath: z.string(),
   createdAt: z.string().datetime(),
@@ -53,6 +54,7 @@ export type Server = z.infer<typeof ServerSchema>;
 
 export const CreateServerRequestSchema = z.object({
   name: z.string().min(1).max(100),
+  description: z.string().max(250).optional(),
   sourcePath: z.string().min(1),
   templateId: z.string().min(1),
   ports: z.array(z.object({
@@ -70,6 +72,7 @@ export type CreateServerRequest = z.infer<typeof CreateServerRequestSchema>;
 export const ServerResponseSchema = z.object({
   id: z.string().min(1),
   name: z.string(),
+  description: z.string().max(250).optional(),
   templateId: z.string(),
   templateName: z.string().optional(),
   status: ServerStatusSchema,
@@ -90,6 +93,7 @@ export type ServerResponse = z.infer<typeof ServerResponseSchema>;
 
 export const UpdateServerRequestSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  description: z.string().max(250).optional(),
 });
 
 export type UpdateServerRequest = z.infer<typeof UpdateServerRequestSchema>;
