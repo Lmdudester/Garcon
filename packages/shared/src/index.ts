@@ -79,3 +79,9 @@ export {
   type ApiSuccessResponse,
   type PaginatedResponse
 } from './types/api.js';
+
+// Config types
+export {
+  RuntimeConfigResponseSchema,
+  type RuntimeConfigResponse
+} from './types/config.js';

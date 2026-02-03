@@ -12,6 +12,9 @@ services:
     volumes:
       # Data directory - stored locally, not in the container
       - ./garcon-data:/garcon-data
+      # Import directory - place server folders here to import them
+      # Set this to the host path where you'll put server files
+      - /path/to/your/import/folder:/garcon-import:ro
       # Docker socket for managing game server containers
       - //var/run/docker.sock:/var/run/docker.sock
     environment:
@@ -21,6 +24,10 @@ services:
       # Example Windows: C:/Users/YourName/path/to/Garcon/garcon-data
       # Example Linux: /home/yourname/path/to/Garcon/garcon-data
       - GARCON_HOST_DATA_DIR=/path/to/your/garcon-data
+      - GARCON_IMPORT_DIR=/garcon-import
+      # Set this to match your import volume source (shown in UI)
+      # Example: C:/Users/YourName/Desktop/Server Imports
+      - GARCON_HOST_IMPORT_DIR=/path/to/your/import/folder
       - PORT=3001
       - HOST=0.0.0.0
     restart: unless-stopped

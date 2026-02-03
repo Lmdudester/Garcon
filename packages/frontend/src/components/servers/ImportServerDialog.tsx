@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2 } from 'lucide-react';
+import { Plus, Trash2, FolderOpen } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -21,6 +21,9 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useServers } from '@/context/ServerContext';
+import { useToast } from '@/context/ToastContext';
+import { api } from '@/lib/api';
+import { copyToClipboard } from '@/lib/utils';
 
 interface PortMapping {
   host: number;
@@ -37,8 +40,19 @@ export function ImportServerDialog() {
   const [templateId, setTemplateId] = useState('');
   const [ports, setPorts] = useState<PortMapping[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [importPath, setImportPath] = useState<string | null>(null);
 
   const { templates, importServer } = useServers();
+  const { toast } = useToast();
+
+  // Fetch import path when dialog opens
+  useEffect(() => {
+    if (open && !importPath) {
+      api.config.getRuntime()
+        .then((config) => setImportPath(config.importPath))
+        .catch(() => setImportPath(null));
+    }
+  }, [open, importPath]);
 
   // Update ports when template changes
   useEffect(() => {
@@ -124,9 +138,43 @@ export function ImportServerDialog() {
         <form onSubmit={handleSubmit}>
           <DialogHeader>
             <DialogTitle>Import Server</DialogTitle>
-            <DialogDescription>
-              Import a game server from a local folder. The folder should contain
-              all the necessary server files.
+            <DialogDescription asChild>
+              <div className="space-y-2">
+                <p>
+                  Import a game server from the import folder. Place your server files there first.
+                </p>
+                {importPath && (
+                  <div className="flex items-center gap-1">
+                    <span className="text-muted-foreground">Import folder:</span>
+                    <button
+                      type="button"
+                      className="flex items-center gap-1 text-blue-500 hover:text-blue-700 hover:underline"
+                      onClick={(e) => {
+                        e.preventDefault();
+                        e.stopPropagation();
+                        const success = copyToClipboard(importPath);
+                        if (success) {
+                          toast({
+                            title: 'Copied',
+                            description: 'Import path copied to clipboard',
+                            variant: 'default'
+                          });
+                        } else {
+                          toast({
+                            title: 'Copy failed',
+                            description: 'Could not copy to clipboard',
+                            variant: 'destructive'
+                          });
+                        }
+                      }}
+                      title="Click to copy path"
+                    >
+                      <FolderOpen className="h-3 w-3" />
+                      <span>{importPath}</span>
+                    </button>
+                  </div>
+                )}
+              </div>
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
@@ -155,16 +203,16 @@ export function ImportServerDialog() {
               </p>
             </div>
             <div className="grid gap-2">
-              <Label htmlFor="sourcePath">Source Folder Path</Label>
+              <Label htmlFor="sourcePath">Folder Name</Label>
               <Input
                 id="sourcePath"
-                placeholder="/path/to/server/files"
+                placeholder="My Server"
                 value={sourcePath}
                 onChange={(e) => setSourcePath(e.target.value)}
                 required
               />
               <p className="text-xs text-muted-foreground">
-                The full path to the folder containing your server files.
+                Name of your server folder within the import directory
               </p>
             </div>
             <div className="grid gap-2">

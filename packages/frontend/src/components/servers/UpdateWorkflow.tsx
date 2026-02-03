@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import type { ServerResponse } from '@garcon/shared';
 import {
   Dialog,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useServers } from '@/context/ServerContext';
 import { useToast } from '@/context/ToastContext';
+import { api } from '@/lib/api';
 import { copyToClipboard } from '@/lib/utils';
 import { CheckCircle2, Circle, Loader2, FolderOpen, XCircle, Archive } from 'lucide-react';
 
@@ -27,10 +28,28 @@ export function UpdateWorkflow({ server, open, onOpenChange }: UpdateWorkflowPro
   const { toast } = useToast();
   const [loading, setLoading] = useState(false);
   const [backupPath, setBackupPath] = useState<string | null>(null);
+  const [hostSourcePath, setHostSourcePath] = useState<string>(server.sourcePath);
 
   // Derive stage from server state
   const stage: Stage = server.updateStage === 'none' ? 'not_started' : 'initiated';
-  const sourcePath = server.sourcePath;
+
+  // Convert container path to host path for display
+  useEffect(() => {
+    if (open) {
+      api.config.getRuntime()
+        .then((config) => {
+          // Replace /garcon-import prefix with the host import path
+          const containerPrefix = '/garcon-import';
+          if (server.sourcePath.startsWith(containerPrefix)) {
+            const relativePath = server.sourcePath.slice(containerPrefix.length);
+            setHostSourcePath(config.importPath + relativePath);
+          } else {
+            setHostSourcePath(server.sourcePath);
+          }
+        })
+        .catch(() => setHostSourcePath(server.sourcePath));
+    }
+  }, [open, server.sourcePath]);
 
   const handleInitiate = async () => {
     setLoading(true);
@@ -156,7 +175,7 @@ export function UpdateWorkflow({ server, open, onOpenChange }: UpdateWorkflowPro
                     onClick={(e) => {
                       e.preventDefault();
                       e.stopPropagation();
-                      const success = copyToClipboard(sourcePath);
+                      const success = copyToClipboard(hostSourcePath);
                       if (success) {
                         toast({
                           title: 'Copied',
@@ -173,7 +192,7 @@ export function UpdateWorkflow({ server, open, onOpenChange }: UpdateWorkflowPro
                     }}
                     title="Click to copy path"
                   >
-                    {sourcePath}
+                    {hostSourcePath}
                   </button>
                 </div>
               )}

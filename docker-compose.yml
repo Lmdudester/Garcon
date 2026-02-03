@@ -9,10 +9,13 @@ services:
       - "3001:3001"
     volumes:
       - ./garcon-data:/garcon-data
+      - "${GARCON_HOST_IMPORT_PATH:-./garcon-import}:/garcon-import:ro"
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
       - NODE_ENV=production
       - GARCON_DATA_DIR=/garcon-data
+      - GARCON_IMPORT_DIR=/garcon-import
+      - GARCON_HOST_IMPORT_DIR=${GARCON_HOST_IMPORT_PATH:-./garcon-import}
       - PORT=3001
       - HOST=0.0.0.0
     restart: unless-stopped

@@ -153,19 +153,30 @@ class ServerService {
   }
 
   async importServer(request: CreateServerRequest): Promise<ServerResponse> {
-    if (!(await pathExists(request.sourcePath))) {
-      throw new ValidationError(`Source path does not exist: ${request.sourcePath}`);
+    // sourcePath is the folder name within the import directory
+    const folderName = request.sourcePath;
+
+    // Prevent path traversal attacks
+    if (folderName.includes('..') || path.isAbsolute(folderName)) {
+      throw new ValidationError('Invalid folder name');
     }
 
-    if (!(await isDirectory(request.sourcePath))) {
-      throw new ValidationError(`Source path is not a directory: ${request.sourcePath}`);
+    // Construct full path within the import directory
+    const sourcePath = path.join(config.paths.importDir, folderName);
+
+    if (!(await pathExists(sourcePath))) {
+      throw new ValidationError(`Folder '${folderName}' not found in import directory`);
+    }
+
+    if (!(await isDirectory(sourcePath))) {
+      throw new ValidationError(`'${folderName}' is not a directory`);
     }
 
     const template = await templateService.getTemplate(request.templateId);
 
     if (template.requiredFiles) {
       for (const requiredFile of template.requiredFiles) {
-        const filePath = path.join(request.sourcePath, requiredFile);
+        const filePath = path.join(sourcePath, requiredFile);
         if (!(await pathExists(filePath))) {
           throw new ValidationError(
             `Required file '${requiredFile}' not found in source folder`
@@ -177,8 +188,8 @@ class ServerService {
     const serverId = generateServerId(request.name);
     const serverPath = path.join(config.paths.serversDir, serverId);
 
-    await copyDirectory(request.sourcePath, serverPath);
-    logger.info({ serverId, sourcePath: request.sourcePath }, 'Server files copied');
+    await copyDirectory(sourcePath, serverPath);
+    logger.info({ serverId, sourcePath }, 'Server files copied');
 
     const defaultPorts = template.defaultPorts?.map((p, index) => ({
       host: p.container + index,
@@ -201,7 +212,7 @@ class ServerService {
       name: request.name,
       description: request.description,
       templateId: request.templateId,
-      sourcePath: request.sourcePath,
+      sourcePath,
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ports: request.ports || defaultPorts,

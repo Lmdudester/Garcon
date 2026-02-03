@@ -6,7 +6,8 @@ import type {
   BackupResponse,
   CreateBackupRequest,
   RestoreBackupResponse,
-  ApiErrorResponse
+  ApiErrorResponse,
+  RuntimeConfigResponse
 } from '@garcon/shared';
 
 const API_BASE = '/api';
@@ -105,6 +106,9 @@ export const api = {
   },
   health: {
     check: () => get<{ status: string; timestamp: string; version: string }>('/health'),
+  },
+  config: {
+    getRuntime: () => get<RuntimeConfigResponse>('/config'),
   },
 };
 

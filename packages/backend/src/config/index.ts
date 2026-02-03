@@ -16,6 +16,8 @@ export interface Config {
     backupsDir: string;
     templatesDir: string;
     logsDir: string;
+    importDir: string; // Directory for importing server files (mounted in Docker)
+    hostImportDir: string; // Host path for import directory (for display to users)
   };
   docker: {
     socketPath: string;
@@ -42,6 +44,15 @@ function getHostDataDir(dataDir: string): string {
   return process.env['GARCON_HOST_DATA_DIR'] || dataDir;
 }
 
+function getImportDir(): string {
+  return process.env['GARCON_IMPORT_DIR'] || '/garcon-import';
+}
+
+function getHostImportDir(importDir: string): string {
+  // For display to users: show the host path if configured
+  return process.env['GARCON_HOST_IMPORT_DIR'] || importDir;
+}
+
 function getDockerSocketPath(): string {
   if (process.env['DOCKER_HOST']) {
     return process.env['DOCKER_HOST'];
@@ -54,6 +65,8 @@ function getDockerSocketPath(): string {
 export function loadConfig(): Config {
   const dataDir = getDataDir();
   const hostDataDir = getHostDataDir(dataDir);
+  const importDir = getImportDir();
+  const hostImportDir = getHostImportDir(importDir);
 
   return {
     server: {
@@ -67,7 +80,9 @@ export function loadConfig(): Config {
       serversDir: path.join(dataDir, 'servers'),
       backupsDir: path.join(dataDir, 'backups'),
       templatesDir: path.join(dataDir, 'templates'),
-      logsDir: path.join(dataDir, 'logs')
+      logsDir: path.join(dataDir, 'logs'),
+      importDir,
+      hostImportDir
     },
     docker: {
       socketPath: getDockerSocketPath(),
