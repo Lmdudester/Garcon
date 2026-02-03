@@ -184,6 +184,7 @@ When you import a server, Garcon creates a `.garcon.yaml` file in the server's d
 ```yaml
 id: string              # Unique server ID (auto-generated)
 name: string            # Server display name (you provide)
+description: string     # Optional server description (max 250 chars)
 templateId: string      # Reference to template ID
 sourcePath: string      # Original source folder path
 createdAt: datetime     # When server was imported
@@ -229,6 +230,7 @@ updateStage: none
 | `GET` | `/api/servers` | List all servers |
 | `POST` | `/api/servers` | Import new server |
 | `GET` | `/api/servers/:id` | Get server details |
+| `PATCH` | `/api/servers/:id` | Update server (name, description) |
 | `DELETE` | `/api/servers/:id` | Delete server |
 | `POST` | `/api/servers/:id/start` | Start server |
 | `POST` | `/api/servers/:id/stop` | Stop server |
@@ -249,6 +251,7 @@ updateStage: none
 | `GET` | `/api/servers/:id/backups` | List server backups |
 | `POST` | `/api/servers/:id/backups` | Create manual backup |
 | `DELETE` | `/api/servers/:id/backups/:timestamp` | Delete specific backup |
+| `POST` | `/api/servers/:id/backups/:timestamp/restore` | Restore server from backup |
 
 ### Update Workflow
 
@@ -269,6 +272,7 @@ updateStage: none
 ```json
 {
   "name": "My Server",
+  "description": "Optional description for this server",
   "sourcePath": "/path/to/server/folder",
   "templateId": "minecraft",
   "ports": [
@@ -351,9 +355,12 @@ Connect to `/ws` for real-time updates.
 | `HOST` | `0.0.0.0` | Backend server host |
 | `GARCON_DATA_DIR` | `./garcon-data` | Data directory path (inside container) |
 | `GARCON_HOST_DATA_DIR` | (same as GARCON_DATA_DIR) | Host path for Docker-in-Docker volume mounts |
+| `GARCON_IMPORT_DIR` | `/garcon-import` | Directory for importing server files (inside container) |
+| `GARCON_HOST_IMPORT_DIR` | (same as GARCON_IMPORT_DIR) | Host path for import directory (displayed to users in UI) |
+| `GARCON_HOST_IMPORT_PATH` | `./garcon-import` | (Docker Compose only) Host path for import folder mount |
 | `LOG_LEVEL` | `info` | Logging level (debug, info, warn, error) |
 | `LOG_PRETTY` | `true` | Pretty print logs |
-| `MAX_BACKUPS_PER_SERVER` | `10` | Maximum backups to keep per server |
+| `MAX_BACKUPS_PER_TYPE` | `5` | Maximum backups to keep per type (manual, auto, pre-update, pre-restore) |
 | `AUTO_BACKUP_ON_STOP` | `true` | Create backup when manually stopping |
 | `DOCKER_HOST` | (auto-detect) | Docker socket path |
 

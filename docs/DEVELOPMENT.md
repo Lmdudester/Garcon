@@ -170,14 +170,15 @@ class TemplateService {
 
 #### BackupService (`backup.service.ts`)
 
-Manages backup creation and retention:
+Manages backup creation, restoration, and retention:
 
 ```typescript
 class BackupService {
-  async createBackup(serverId, type): Promise<BackupInfo>
+  async createBackup(serverId, type, description?): Promise<BackupInfo>
   async listBackups(serverId): Promise<BackupInfo[]>
   async deleteBackup(serverId, timestamp): Promise<void>
-  async enforceRetention(serverId): Promise<void>  // Delete old backups
+  async restoreBackup(serverId, timestamp): Promise<RestoreBackupResponse>  // Restore from backup
+  async enforceRetention(serverId): Promise<void>  // Delete old backups per type
 }
 ```
 
@@ -299,12 +300,13 @@ export const api = {
     list: () => get<ServerResponse[]>('/api/servers'),
     get: (id: string) => get<ServerResponse>(`/api/servers/${id}`),
     create: (data: CreateServerRequest) => post<ServerResponse>('/api/servers', data),
+    update: (id: string, data: UpdateServerRequest) => patch<ServerResponse>(`/api/servers/${id}`, data),
     delete: (id: string) => del(`/api/servers/${id}`),
     start: (id: string) => post(`/api/servers/${id}/start`),
     stop: (id: string) => post(`/api/servers/${id}/stop`),
     restart: (id: string) => post(`/api/servers/${id}/restart`),
     acknowledgeCrash: (id: string) => post(`/api/servers/${id}/acknowledge-crash`),
-    update: {
+    updateWorkflow: {
       initiate: (id: string) => post(`/api/servers/${id}/update/initiate`),
       apply: (id: string) => post(`/api/servers/${id}/update/apply`),
       cancel: (id: string) => post(`/api/servers/${id}/update/cancel`),
@@ -316,9 +318,12 @@ export const api = {
   },
   backups: {
     list: (serverId: string) => get<BackupInfo[]>(`/api/servers/${serverId}/backups`),
-    create: (serverId: string) => post<BackupInfo>(`/api/servers/${serverId}/backups`),
+    create: (serverId: string, description?: string) =>
+      post<BackupInfo>(`/api/servers/${serverId}/backups`, { description }),
     delete: (serverId: string, timestamp: string) =>
       del(`/api/servers/${serverId}/backups/${timestamp}`),
+    restore: (serverId: string, timestamp: string) =>
+      post<RestoreBackupResponse>(`/api/servers/${serverId}/backups/${timestamp}/restore`),
   },
   health: {
     check: () => get<{ status: string }>('/api/health'),
