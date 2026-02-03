@@ -38,10 +38,12 @@ export {
   BackupSchema,
   BackupResponseSchema,
   CreateBackupRequestSchema,
+  RestoreBackupResponseSchema,
   type BackupType,
   type Backup,
   type BackupResponse,
-  type CreateBackupRequest
+  type CreateBackupRequest,
+  type RestoreBackupResponse
 } from './types/backup.js';
 
 // WebSocket types

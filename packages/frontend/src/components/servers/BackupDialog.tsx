@@ -7,11 +7,22 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from '@/components/ui/alert-dialog';
 import { Button } from '@/components/ui/button';
 import { api } from '@/lib/api';
+import { ApiError } from '@/lib/api';
 import { useToast } from '@/context/ToastContext';
 import { formatDate, formatBytes, copyToClipboard } from '@/lib/utils';
-import { Download, Trash2, Plus, Loader2, FolderOpen } from 'lucide-react';
+import { Download, Trash2, Plus, Loader2, FolderOpen, RotateCcw } from 'lucide-react';
 
 interface BackupDialogProps {
   server: ServerResponse;
@@ -24,8 +35,14 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
   const [loading, setLoading] = useState(false);
   const [creating, setCreating] = useState(false);
   const [deleting, setDeleting] = useState<string | null>(null);
+  const [restoreDialogOpen, setRestoreDialogOpen] = useState(false);
+  const [selectedBackup, setSelectedBackup] = useState<BackupResponse | null>(null);
+  const [restoring, setRestoring] = useState(false);
 
   const { toast } = useToast();
+
+  const isServerRunning = server.status === 'running' || server.status === 'starting';
+  const isUpdating = server.updateStage !== 'none';
 
   useEffect(() => {
     if (open) {
@@ -88,6 +105,37 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
       });
     } finally {
       setDeleting(null);
+    }
+  };
+
+  const handleRestoreClick = (backup: BackupResponse) => {
+    setSelectedBackup(backup);
+    setRestoreDialogOpen(true);
+  };
+
+  const handleRestoreConfirm = async () => {
+    if (!selectedBackup) return;
+
+    setRestoring(true);
+    try {
+      const result = await api.backups.restore(server.id, selectedBackup.timestamp);
+      await loadBackups();
+      toast({
+        title: 'Backup Restored',
+        description: `Server restored to ${formatDate(result.restoredFrom)}. A pre-restore backup was created.`,
+        variant: 'success'
+      });
+      setRestoreDialogOpen(false);
+    } catch (error) {
+      const message = error instanceof ApiError ? error.message : 'Failed to restore backup';
+      toast({
+        title: 'Error',
+        description: message,
+        variant: 'destructive'
+      });
+    } finally {
+      setRestoring(false);
+      setSelectedBackup(null);
     }
   };
 
@@ -165,24 +213,74 @@ export function BackupDialog({ server, open, onOpenChange }: BackupDialogProps) 
                       </button>
                     </div>
                   </div>
-                  <Button
-                    size="sm"
-                    variant="ghost"
-                    onClick={() => handleDelete(backup.timestamp)}
-                    disabled={deleting === backup.timestamp}
-                  >
-                    {deleting === backup.timestamp ? (
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                    ) : (
-                      <Trash2 className="h-4 w-4 text-red-500" />
-                    )}
-                  </Button>
+                  <div className="flex gap-1">
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleRestoreClick(backup)}
+                      disabled={restoring || isServerRunning || isUpdating}
+                      title={isServerRunning ? 'Stop server to restore' : isUpdating ? 'Cancel update to restore' : 'Restore this backup'}
+                    >
+                      <RotateCcw className="h-4 w-4 text-amber-500" />
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="ghost"
+                      onClick={() => handleDelete(backup.timestamp)}
+                      disabled={deleting === backup.timestamp}
+                    >
+                      {deleting === backup.timestamp ? (
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                      ) : (
+                        <Trash2 className="h-4 w-4 text-red-500" />
+                      )}
+                    </Button>
+                  </div>
                 </div>
               ))}
             </div>
           )}
         </div>
       </DialogContent>
+
+      <AlertDialog open={restoreDialogOpen} onOpenChange={setRestoreDialogOpen}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Restore Backup</AlertDialogTitle>
+            <AlertDialogDescription className="space-y-2">
+              <p>
+                This will restore the server to the state from{' '}
+                <span className="font-semibold">
+                  {selectedBackup && formatDate(selectedBackup.timestamp)}
+                </span>.
+              </p>
+              <p>
+                A pre-restore backup will be created automatically so you can undo this action.
+              </p>
+              <p className="text-amber-600 dark:text-amber-400 font-medium">
+                All current server files will be replaced.
+              </p>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={restoring}>Cancel</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={handleRestoreConfirm}
+              disabled={restoring}
+              className="bg-amber-600 hover:bg-amber-700"
+            >
+              {restoring ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Restoring...
+                </>
+              ) : (
+                'Restore'
+              )}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </Dialog>
   );
 }

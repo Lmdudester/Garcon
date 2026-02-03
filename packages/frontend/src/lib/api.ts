@@ -5,6 +5,7 @@ import type {
   TemplateResponse,
   BackupResponse,
   CreateBackupRequest,
+  RestoreBackupResponse,
   ApiErrorResponse
 } from '@garcon/shared';
 
@@ -99,6 +100,8 @@ export const api = {
       post<BackupResponse>(`/servers/${serverId}/backups`, data),
     delete: (serverId: string, timestamp: string) =>
       del<void>(`/servers/${serverId}/backups/${encodeURIComponent(timestamp)}`),
+    restore: (serverId: string, timestamp: string) =>
+      post<RestoreBackupResponse>(`/servers/${serverId}/backups/${encodeURIComponent(timestamp)}/restore`),
   },
   health: {
     check: () => get<{ status: string; timestamp: string; version: string }>('/health'),

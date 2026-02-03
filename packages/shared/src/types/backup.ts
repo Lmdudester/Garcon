@@ -1,6 +1,6 @@
 import { z } from 'zod';
 
-export const BackupTypeSchema = z.enum(['manual', 'auto', 'pre-update']);
+export const BackupTypeSchema = z.enum(['manual', 'auto', 'pre-update', 'pre-restore']);
 
 export type BackupType = z.infer<typeof BackupTypeSchema>;
 
@@ -31,3 +31,11 @@ export const CreateBackupRequestSchema = z.object({
 });
 
 export type CreateBackupRequest = z.infer<typeof CreateBackupRequestSchema>;
+
+export const RestoreBackupResponseSchema = z.object({
+  serverId: z.string(),
+  restoredFrom: z.string().datetime(),
+  preRestoreBackup: BackupResponseSchema.optional()
+});
+
+export type RestoreBackupResponse = z.infer<typeof RestoreBackupResponseSchema>;

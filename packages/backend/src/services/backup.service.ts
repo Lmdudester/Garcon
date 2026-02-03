@@ -1,8 +1,9 @@
 import path from 'path';
 import fs from 'fs/promises';
 import archiver from 'archiver';
-import { createWriteStream } from 'fs';
-import type { BackupType, BackupResponse } from '@garcon/shared';
+import { createWriteStream, createReadStream } from 'fs';
+import * as tar from 'tar';
+import type { BackupType, BackupResponse, RestoreBackupResponse } from '@garcon/shared';
 import { config } from '../config/index.js';
 import { createChildLogger } from '../utils/logger.js';
 import { NotFoundError, ServerStateError } from '../utils/errors.js';
@@ -28,7 +29,7 @@ class BackupService {
   private parseBackupFileName(
     fileName: string
   ): { timestamp: string; type: BackupType } | null {
-    const match = fileName.match(/^backup-(.+)-(manual|auto|pre-update)\.tar\.gz$/);
+    const match = fileName.match(/^backup-(.+)-(manual|auto|pre-update|pre-restore)\.tar\.gz$/);
     if (!match) return null;
 
     // Sanitized format: YYYY-MM-DDTHH-mm-ss-SSSZ
@@ -158,6 +159,54 @@ class BackupService {
     }
   }
 
+  async restoreBackup(serverId: string, timestamp: string): Promise<RestoreBackupResponse> {
+    const serverPath = path.join(config.paths.serversDir, serverId);
+
+    if (!(await pathExists(serverPath))) {
+      throw new NotFoundError('Server', serverId);
+    }
+
+    // Find the backup file
+    const backupDir = this.getBackupDir(serverId);
+    const files = await listFiles(backupDir, '.tar.gz');
+    let backupFilePath: string | null = null;
+
+    for (const fileName of files) {
+      const parsed = this.parseBackupFileName(fileName);
+      if (parsed && parsed.timestamp === timestamp) {
+        backupFilePath = path.join(backupDir, fileName);
+        break;
+      }
+    }
+
+    if (!backupFilePath) {
+      throw new NotFoundError('Backup', timestamp);
+    }
+
+    // Create pre-restore backup of current state
+    const preRestoreBackup = await this.createBackup(serverId, 'pre-restore');
+    logger.info({ serverId, timestamp: preRestoreBackup.timestamp }, 'Pre-restore backup created');
+
+    // Clear server directory contents (except .garcon.yaml)
+    const entries = await fs.readdir(serverPath);
+    for (const entry of entries) {
+      if (entry === '.garcon.yaml') continue;
+      const entryPath = path.join(serverPath, entry);
+      await fs.rm(entryPath, { recursive: true, force: true });
+    }
+
+    // Extract the backup archive
+    await this.extractArchive(backupFilePath, serverPath);
+
+    logger.info({ serverId, restoredFrom: timestamp }, 'Backup restored');
+
+    return {
+      serverId,
+      restoredFrom: timestamp,
+      preRestoreBackup
+    };
+  }
+
   private async createArchive(sourcePath: string, destPath: string): Promise<void> {
     return new Promise((resolve, reject) => {
       const output = createWriteStream(destPath);
@@ -177,6 +226,18 @@ class BackupService {
       archive.directory(sourcePath, false);
       archive.finalize();
     });
+  }
+
+  private async extractArchive(archivePath: string, destPath: string): Promise<void> {
+    await tar.extract({
+      file: archivePath,
+      cwd: destPath,
+      filter: (entryPath) => {
+        // Skip .garcon.yaml to preserve server config
+        return !entryPath.endsWith('.garcon.yaml') && entryPath !== '.garcon.yaml';
+      }
+    });
+    logger.debug({ archivePath, destPath }, 'Archive extracted');
   }
 
   private async enforceRetentionPolicy(serverId: string): Promise<void> {
