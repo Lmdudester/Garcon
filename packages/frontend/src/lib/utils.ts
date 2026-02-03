@@ -72,7 +72,14 @@ export function copyToClipboard(text: string): boolean {
   textArea.style.background = 'transparent';
   // Important: do NOT set opacity or pointerEvents - can break copy
 
-  document.body.appendChild(textArea);
+  // Find the best container to append the textarea to.
+  // Radix UI dialogs use focus trapping - if we append to document.body
+  // (outside the dialog), the focus trap steals focus before execCommand
+  // can complete. Appending inside the dialog's content fixes this.
+  const dialogContent = document.querySelector('[role="dialog"]');
+  const container = dialogContent || document.body;
+
+  container.appendChild(textArea);
   textArea.focus();
   textArea.select();
 
@@ -83,7 +90,7 @@ export function copyToClipboard(text: string): boolean {
     success = false;
   }
 
-  document.body.removeChild(textArea);
+  container.removeChild(textArea);
 
   // If copy failed, prompt user to copy manually
   if (!success) {
