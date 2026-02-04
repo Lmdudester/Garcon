@@ -35,6 +35,9 @@ importers:
       dockerode:
         specifier: ^4.0.0
         version: 4.0.9
+      dotenv:
+        specifier: ^16.4.0
+        version: 16.6.1
       fastify:
         specifier: ^4.26.0
         version: 4.29.1
@@ -1586,6 +1589,10 @@ packages:
   dockerode@4.0.9:
     resolution: {integrity: sha512-iND4mcOWhPaCNh54WmK/KoSb35AFqPAUWFMffTQcp52uQt36b5uNwEJTSXntJZBbeGad72Crbi/hvDIv6us/6Q==}
     engines: {node: '>= 8.0'}
+
+  dotenv@16.6.1:
+    resolution: {integrity: sha512-uBq4egWHTcTt33a72vpSG0z3HnPuIl6NqYcTrKEg2azoEyl2hpW0zqlxysq2pK9HlDIHyHyakeYaYnSAwd8bow==}
+    engines: {node: '>=12'}
 
   duplexify@4.1.3:
     resolution: {integrity: sha512-M3BmBhwJRZsSx38lZyhE53Csddgzl5R7xGJNk7CVddZD6CcmwMCH8J+7AprIrQKH7TonKxaCjcv27Qmf+sQ+oA==}
@@ -3997,6 +4004,8 @@ snapshots:
       uuid: 10.0.0
     transitivePeerDependencies:
       - supports-color
+
+  dotenv@16.6.1: {}
 
   duplexify@4.1.3:
     dependencies:

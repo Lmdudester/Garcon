@@ -1,7 +1,12 @@
 import path from 'path';
 import { fileURLToPath } from 'url';
+import { config as dotenvConfig } from 'dotenv';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables from .env file (for local development)
+// This runs before loadConfig() is called, ensuring env vars are available
+dotenvConfig({ path: path.resolve(__dirname, '../../../../.env') });
 
 export interface Config {
   server: {
