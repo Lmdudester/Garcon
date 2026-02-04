@@ -1,5 +1,5 @@
 import { useState, useEffect } from 'react';
-import { Plus, Trash2, FolderOpen } from 'lucide-react';
+import { Plus, Trash2, FolderOpen, Star } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -23,13 +23,14 @@ import {
 import { useServers } from '@/context/ServerContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/lib/api';
-import { copyToClipboard } from '@/lib/utils';
+import { cn, copyToClipboard } from '@/lib/utils';
 
 interface PortMapping {
   host: number;
   container: number;
   protocol: 'tcp' | 'udp';
   description?: string;
+  userFacing?: boolean;
 }
 
 export function ImportServerDialog() {
@@ -59,11 +60,12 @@ export function ImportServerDialog() {
     if (templateId) {
       const template = templates.find(t => t.id === templateId);
       if (template?.defaultPorts) {
-        setPorts(template.defaultPorts.map(p => ({
+        setPorts(template.defaultPorts.map((p, index) => ({
           host: p.container, // Default host port = container port
           container: p.container,
           protocol: p.protocol || 'tcp',
-          description: p.description
+          description: p.description,
+          userFacing: p.userFacing ?? (index === 0) // Default first port if none specified
         })));
       } else {
         setPorts([]);
@@ -87,7 +89,8 @@ export function ImportServerDialog() {
         ports: ports.map(p => ({
           host: p.host,
           container: p.container,
-          protocol: p.protocol
+          protocol: p.protocol,
+          userFacing: p.userFacing
         }))
       });
       setOpen(false);
@@ -116,11 +119,23 @@ export function ImportServerDialog() {
   };
 
   const addPort = () => {
-    setPorts(prev => [...prev, { host: 25565, container: 25565, protocol: 'tcp', description: undefined }]);
+    const isFirst = ports.length === 0;
+    setPorts(prev => [...prev, { host: 25565, container: 25565, protocol: 'tcp', description: undefined, userFacing: isFirst }]);
   };
 
   const removePort = (index: number) => {
-    setPorts(prev => prev.filter((_, i) => i !== index));
+    setPorts(prev => {
+      const newPorts = prev.filter((_, i) => i !== index);
+      // If removed port was user-facing, reassign to first remaining port
+      if (prev[index]?.userFacing && newPorts.length > 0) {
+        newPorts[0].userFacing = true;
+      }
+      return newPorts;
+    });
+  };
+
+  const setUserFacingPort = (index: number) => {
+    setPorts(prev => prev.map((p, i) => ({ ...p, userFacing: i === index })));
   };
 
   return (
@@ -247,6 +262,17 @@ export function ImportServerDialog() {
                 <div className="space-y-2">
                   {ports.map((port, index) => (
                     <div key={index} className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => setUserFacingPort(index)}
+                        className={cn(
+                          "p-1 rounded-full shrink-0",
+                          port.userFacing ? "text-yellow-500" : "text-muted-foreground hover:text-foreground"
+                        )}
+                        title={port.userFacing ? "User-facing port" : "Set as user-facing port"}
+                      >
+                        <Star className={cn("h-4 w-4", port.userFacing && "fill-current")} />
+                      </button>
                       <div className="flex-1">
                         <Input
                           type="number"
@@ -291,7 +317,7 @@ export function ImportServerDialog() {
                     </div>
                   ))}
                   <p className="text-xs text-muted-foreground">
-                    Host port (your machine) → Container port (server)
+                    Host port → Container port. <Star className="h-3 w-3 inline text-yellow-500 fill-current" /> = shown to players.
                   </p>
                 </div>
               )}

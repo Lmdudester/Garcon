@@ -31,7 +31,8 @@ export const ServerConfigSchema = z.object({
   ports: z.array(z.object({
     host: z.number().int().min(1).max(65535),
     container: z.number().int().min(1).max(65535),
-    protocol: z.enum(['tcp', 'udp']).default('tcp')
+    protocol: z.enum(['tcp', 'udp']).default('tcp'),
+    userFacing: z.boolean().optional()
   })).default([]),
   environment: z.record(z.string()).default({}),
   memory: z.string().optional(),
@@ -60,7 +61,8 @@ export const CreateServerRequestSchema = z.object({
   ports: z.array(z.object({
     host: z.number().int().min(1).max(65535),
     container: z.number().int().min(1).max(65535),
-    protocol: z.enum(['tcp', 'udp']).default('tcp')
+    protocol: z.enum(['tcp', 'udp']).default('tcp'),
+    userFacing: z.boolean().optional()
   })).optional(),
   environment: z.record(z.string()).optional(),
   memory: z.string().optional(),
@@ -81,7 +83,8 @@ export const ServerResponseSchema = z.object({
   ports: z.array(z.object({
     host: z.number(),
     container: z.number(),
-    protocol: z.enum(['tcp', 'udp'])
+    protocol: z.enum(['tcp', 'udp']),
+    userFacing: z.boolean().optional()
   })),
   updateStage: UpdateStageSchema,
   sourcePath: z.string(),

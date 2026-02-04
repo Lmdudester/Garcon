@@ -25,7 +25,8 @@ export type TemplateExecutionConfig = z.infer<typeof TemplateExecutionConfigSche
 export const TemplateDefaultPortSchema = z.object({
   container: z.number().int().min(1).max(65535),
   protocol: z.enum(['tcp', 'udp']).default('tcp'),
-  description: z.string().optional()
+  description: z.string().optional(),
+  userFacing: z.boolean().optional()
 });
 
 export type TemplateDefaultPort = z.infer<typeof TemplateDefaultPortSchema>;

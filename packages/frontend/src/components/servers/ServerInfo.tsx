@@ -2,6 +2,7 @@ import type { ServerResponse } from '@garcon/shared';
 import { formatUptime, copyToClipboard } from '@/lib/utils';
 import { config } from '@/lib/config';
 import { useToast } from '@/context/ToastContext';
+import { useViewMode } from '@/context/ViewModeContext';
 import { Clock, Tag, Copy, FileText } from 'lucide-react';
 
 interface ServerInfoProps {
@@ -18,6 +19,14 @@ function formatPortCopy(port: { host: number }): string {
 
 export function ServerInfo({ server }: ServerInfoProps) {
   const { toast } = useToast();
+  const { isAdmin } = useViewMode();
+
+  // In user view: show only userFacing port, or first port as fallback
+  const portsToShow = isAdmin
+    ? server.ports
+    : server.ports.filter(p => p.userFacing).length > 0
+      ? server.ports.filter(p => p.userFacing)
+      : server.ports.slice(0, 1);
 
   const handleCopyPort = (port: { host: number; protocol: string }) => {
     const address = formatPortCopy(port);
@@ -51,11 +60,11 @@ export function ServerInfo({ server }: ServerInfoProps) {
         <span>{server.templateName || server.templateId}</span>
       </div>
 
-      {server.ports.length > 0 && (
+      {portsToShow.length > 0 && (
         <div className="flex items-center gap-2">
-          <Copy className="h-4 w-4" />
+          <Copy className="h-4 w-4 shrink-0" />
           <div className="flex flex-wrap gap-x-3 gap-y-1">
-            {server.ports.map((p, i) => (
+            {portsToShow.map((p, i) => (
               <button
                 key={i}
                 type="button"
