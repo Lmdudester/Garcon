@@ -150,6 +150,7 @@ class DockerManagerService {
       Image: template.docker.baseImage,
       name: containerName,
       Labels: labels,
+      User: '1000:1000', // Run as non-root user (required by Unreal Engine games, best practice for all)
       Cmd: ['sh', '-c', command],
       WorkingDir: template.docker.mountPath,
       ExposedPorts: exposedPorts,
@@ -158,9 +159,12 @@ class DockerManagerService {
         PortBindings: portBindings,
         RestartPolicy: { Name: 'no' }
       },
-      Env: Object.entries(serverConfig.environment).map(
-        ([key, value]) => `${key}=${value}`
-      )
+      Env: [
+        `HOME=${template.docker.mountPath}`, // Ensure HOME is set for non-root user
+        ...Object.entries(serverConfig.environment).map(
+          ([key, value]) => `${key}=${value}`
+        )
+      ]
     };
 
     if (serverConfig.memory) {
