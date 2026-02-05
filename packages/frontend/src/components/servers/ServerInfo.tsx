@@ -3,7 +3,7 @@ import { formatUptime, copyToClipboard } from '@/lib/utils';
 import { config } from '@/lib/config';
 import { useToast } from '@/context/ToastContext';
 import { useViewMode } from '@/context/ViewModeContext';
-import { Clock, Tag, Copy, FileText } from 'lucide-react';
+import { Clock, Tag, Copy, FileText, RotateCcw } from 'lucide-react';
 
 interface ServerInfoProps {
   server: ServerResponse;
@@ -87,6 +87,13 @@ export function ServerInfo({ server }: ServerInfoProps) {
         <div className="flex items-center gap-2">
           <Clock className="h-4 w-4" />
           <span>Uptime: {formatUptime(server.uptime)}</span>
+        </div>
+      )}
+
+      {isAdmin && server.restartAfterMaintenance && (
+        <div className="flex items-center gap-2">
+          <RotateCcw className="h-4 w-4" />
+          <span>Auto-restart after maintenance</span>
         </div>
       )}
     </div>

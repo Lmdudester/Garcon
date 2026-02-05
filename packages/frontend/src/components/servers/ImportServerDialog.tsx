@@ -20,6 +20,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { Switch } from '@/components/ui/switch';
 import { useServers } from '@/context/ServerContext';
 import { useToast } from '@/context/ToastContext';
 import { api } from '@/lib/api';
@@ -40,6 +41,7 @@ export function ImportServerDialog() {
   const [sourcePath, setSourcePath] = useState('');
   const [templateId, setTemplateId] = useState('');
   const [ports, setPorts] = useState<PortMapping[]>([]);
+  const [restartAfterMaintenance, setRestartAfterMaintenance] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [importPath, setImportPath] = useState<string | null>(null);
 
@@ -91,7 +93,8 @@ export function ImportServerDialog() {
           container: p.container,
           protocol: p.protocol,
           userFacing: p.userFacing
-        }))
+        })),
+        restartAfterMaintenance
       });
       setOpen(false);
       resetForm();
@@ -108,6 +111,7 @@ export function ImportServerDialog() {
     setSourcePath('');
     setTemplateId('');
     setPorts([]);
+    setRestartAfterMaintenance(false);
   };
 
   const updatePort = (index: number, field: 'host' | 'container', value: number) => {
@@ -321,6 +325,20 @@ export function ImportServerDialog() {
                   </p>
                 </div>
               )}
+            </div>
+
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="restartAfterMaintenance">Auto-restart after maintenance</Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically restart this server after scheduled 4 AM maintenance
+                </p>
+              </div>
+              <Switch
+                id="restartAfterMaintenance"
+                checked={restartAfterMaintenance}
+                onCheckedChange={setRestartAfterMaintenance}
+              />
             </div>
           </div>
           <DialogFooter>

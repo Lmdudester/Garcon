@@ -219,7 +219,8 @@ class ServerService {
       environment: { ...defaultEnvironment, ...request.environment },
       updateStage: 'none',
       memory: request.memory,
-      cpuLimit: request.cpuLimit
+      cpuLimit: request.cpuLimit,
+      restartAfterMaintenance: request.restartAfterMaintenance ?? false
     };
 
     const configPath = path.join(serverPath, GARCON_CONFIG_FILE);
@@ -277,6 +278,11 @@ class ServerService {
 
     if (request.description !== undefined && request.description !== state.config.description) {
       state.config.description = request.description;
+      updated = true;
+    }
+
+    if (request.restartAfterMaintenance !== undefined && request.restartAfterMaintenance !== state.config.restartAfterMaintenance) {
+      state.config.restartAfterMaintenance = request.restartAfterMaintenance;
       updated = true;
     }
 
@@ -534,7 +540,8 @@ class ServerService {
       updateStage: state.updateStage,
       sourcePath: state.config.sourcePath,
       createdAt: state.config.createdAt,
-      updatedAt: state.config.updatedAt
+      updatedAt: state.config.updatedAt,
+      restartAfterMaintenance: state.config.restartAfterMaintenance ?? false
     };
   }
 }

@@ -12,6 +12,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Textarea } from '@/components/ui/textarea';
+import { Switch } from '@/components/ui/switch';
 import { useServers } from '@/context/ServerContext';
 
 interface EditServerDialogProps {
@@ -23,6 +24,7 @@ interface EditServerDialogProps {
 export function EditServerDialog({ server, open, onOpenChange }: EditServerDialogProps) {
   const [name, setName] = useState(server.name);
   const [description, setDescription] = useState(server.description || '');
+  const [restartAfterMaintenance, setRestartAfterMaintenance] = useState(server.restartAfterMaintenance);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const { editServer } = useServers();
@@ -32,8 +34,9 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
     if (open) {
       setName(server.name);
       setDescription(server.description || '');
+      setRestartAfterMaintenance(server.restartAfterMaintenance);
     }
-  }, [open, server.name, server.description]);
+  }, [open, server.name, server.description, server.restartAfterMaintenance]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -43,7 +46,8 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
     try {
       await editServer(server.id, {
         name,
-        description: description || undefined
+        description: description || undefined,
+        restartAfterMaintenance
       });
       onOpenChange(false);
     } catch {
@@ -53,7 +57,9 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
     }
   };
 
-  const hasChanges = name !== server.name || description !== (server.description || '');
+  const hasChanges = name !== server.name ||
+    description !== (server.description || '') ||
+    restartAfterMaintenance !== server.restartAfterMaintenance;
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
@@ -90,6 +96,19 @@ export function EditServerDialog({ server, open, onOpenChange }: EditServerDialo
               <p className="text-xs text-muted-foreground">
                 {description.length}/250 characters
               </p>
+            </div>
+            <div className="flex items-center justify-between">
+              <div className="space-y-0.5">
+                <Label htmlFor="restartAfterMaintenance">Auto-restart after maintenance</Label>
+                <p className="text-xs text-muted-foreground">
+                  Automatically restart this server after scheduled 4 AM maintenance
+                </p>
+              </div>
+              <Switch
+                id="restartAfterMaintenance"
+                checked={restartAfterMaintenance}
+                onCheckedChange={setRestartAfterMaintenance}
+              />
             </div>
           </div>
           <DialogFooter>

@@ -37,7 +37,8 @@ export const ServerConfigSchema = z.object({
   environment: z.record(z.string()).default({}),
   memory: z.string().optional(),
   cpuLimit: z.number().optional(),
-  updateStage: UpdateStageSchema.default('none')
+  updateStage: UpdateStageSchema.default('none'),
+  restartAfterMaintenance: z.boolean().default(false)
 });
 
 export type ServerConfig = z.infer<typeof ServerConfigSchema>;
@@ -66,7 +67,8 @@ export const CreateServerRequestSchema = z.object({
   })).optional(),
   environment: z.record(z.string()).optional(),
   memory: z.string().optional(),
-  cpuLimit: z.number().optional()
+  cpuLimit: z.number().optional(),
+  restartAfterMaintenance: z.boolean().optional()
 });
 
 export type CreateServerRequest = z.infer<typeof CreateServerRequestSchema>;
@@ -89,7 +91,8 @@ export const ServerResponseSchema = z.object({
   updateStage: UpdateStageSchema,
   sourcePath: z.string(),
   createdAt: z.string().datetime(),
-  updatedAt: z.string().datetime()
+  updatedAt: z.string().datetime(),
+  restartAfterMaintenance: z.boolean()
 });
 
 export type ServerResponse = z.infer<typeof ServerResponseSchema>;
@@ -97,6 +100,7 @@ export type ServerResponse = z.infer<typeof ServerResponseSchema>;
 export const UpdateServerRequestSchema = z.object({
   name: z.string().min(1).max(100).optional(),
   description: z.string().max(250).optional(),
+  restartAfterMaintenance: z.boolean().optional(),
 });
 
 export type UpdateServerRequest = z.infer<typeof UpdateServerRequestSchema>;
