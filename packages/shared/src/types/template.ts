@@ -17,7 +17,8 @@ export const TemplateExecutionConfigSchema = z.object({
   executable: z.string(),
   command: z.string(),
   stopCommand: z.string().optional(),
-  stopTimeout: z.number().default(30)
+  stopTimeout: z.number().default(30),
+  requiresNonRoot: z.boolean().default(false)
 });
 
 export type TemplateExecutionConfig = z.infer<typeof TemplateExecutionConfigSchema>;
@@ -31,15 +32,6 @@ export const TemplateDefaultPortSchema = z.object({
 
 export type TemplateDefaultPort = z.infer<typeof TemplateDefaultPortSchema>;
 
-export const TemplateVariableSchema = z.object({
-  name: z.string(),
-  description: z.string().optional(),
-  defaultValue: z.string().optional(),
-  required: z.boolean().default(false)
-});
-
-export type TemplateVariable = z.infer<typeof TemplateVariableSchema>;
-
 export const TemplateSchema = z.object({
   id: z.string(),
   name: z.string(),
@@ -47,7 +39,6 @@ export const TemplateSchema = z.object({
   docker: TemplateDockerConfigSchema,
   execution: TemplateExecutionConfigSchema,
   defaultPorts: z.array(TemplateDefaultPortSchema).optional(),
-  variables: z.array(TemplateVariableSchema).optional(),
   requiredFiles: z.array(z.string()).optional()
 });
 
@@ -57,8 +48,7 @@ export const TemplateResponseSchema = z.object({
   id: z.string(),
   name: z.string(),
   description: z.string().optional(),
-  defaultPorts: z.array(TemplateDefaultPortSchema).optional(),
-  variables: z.array(TemplateVariableSchema).optional()
+  defaultPorts: z.array(TemplateDefaultPortSchema).optional()
 });
 
 export type TemplateResponse = z.infer<typeof TemplateResponseSchema>;

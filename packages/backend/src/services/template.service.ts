@@ -19,14 +19,12 @@ const DEFAULT_TEMPLATES: Template[] = [
     },
     execution: {
       executable: 'server.jar',
-      command: 'java -Xmx{MEMORY} -Xms{MEMORY} -jar server.jar nogui',
-      stopTimeout: 30
+      command: 'java -Xmx2G -Xms2G -jar server.jar nogui',
+      stopTimeout: 30,
+      requiresNonRoot: false
     },
     defaultPorts: [
       { container: 25565, protocol: 'tcp', description: 'Minecraft server port' }
-    ],
-    variables: [
-      { name: 'MEMORY', description: 'Server memory allocation', defaultValue: '2G', required: false }
     ],
     requiredFiles: ['server.jar']
   },
@@ -40,17 +38,13 @@ const DEFAULT_TEMPLATES: Template[] = [
     },
     execution: {
       executable: 'valheim_server.x86_64',
-      command: './valheim_server.x86_64 -nographics -batchmode -port {PORT} -name "{SERVER_NAME}" -world "{WORLD_NAME}"',
-      stopTimeout: 30
+      command: './valheim_server.x86_64 -nographics -batchmode -port 2456 -name "My Valheim Server" -world "Dedicated"',
+      stopTimeout: 30,
+      requiresNonRoot: false
     },
     defaultPorts: [
       { container: 2456, protocol: 'udp', description: 'Game port' },
       { container: 2457, protocol: 'udp', description: 'Query port' }
-    ],
-    variables: [
-      { name: 'PORT', description: 'Game port', defaultValue: '2456', required: false },
-      { name: 'SERVER_NAME', description: 'Server name', defaultValue: 'My Valheim Server', required: false },
-      { name: 'WORLD_NAME', description: 'World name', defaultValue: 'Dedicated', required: false }
     ],
     requiredFiles: ['valheim_server.x86_64']
   },
@@ -64,15 +58,13 @@ const DEFAULT_TEMPLATES: Template[] = [
     },
     execution: {
       executable: 'VRisingServer.exe',
-      command: 'wine VRisingServer.exe -persistentDataPath /server/save-data -serverName "{SERVER_NAME}"',
-      stopTimeout: 60
+      command: 'wine VRisingServer.exe -persistentDataPath /server/save-data -serverName "V Rising Server"',
+      stopTimeout: 60,
+      requiresNonRoot: false
     },
     defaultPorts: [
       { container: 9876, protocol: 'udp', description: 'Game port' },
       { container: 9877, protocol: 'udp', description: 'Query port' }
-    ],
-    variables: [
-      { name: 'SERVER_NAME', description: 'Server name', defaultValue: 'V Rising Server', required: false }
     ],
     requiredFiles: ['VRisingServer.exe']
   }
@@ -146,8 +138,7 @@ class TemplateService {
       id: template.id,
       name: template.name,
       description: template.description,
-      defaultPorts: template.defaultPorts,
-      variables: template.variables
+      defaultPorts: template.defaultPorts
     };
   }
 }

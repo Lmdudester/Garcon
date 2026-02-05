@@ -21,13 +21,11 @@ export {
   TemplateDockerConfigSchema,
   TemplateExecutionConfigSchema,
   TemplateDefaultPortSchema,
-  TemplateVariableSchema,
   TemplateSchema,
   TemplateResponseSchema,
   type TemplateDockerConfig,
   type TemplateExecutionConfig,
   type TemplateDefaultPort,
-  type TemplateVariable,
   type Template,
   type TemplateResponse
 } from './types/template.js';

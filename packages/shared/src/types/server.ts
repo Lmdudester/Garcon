@@ -34,7 +34,6 @@ export const ServerConfigSchema = z.object({
     protocol: z.enum(['tcp', 'udp']).default('tcp'),
     userFacing: z.boolean().optional()
   })).default([]),
-  environment: z.record(z.string()).default({}),
   memory: z.string().optional(),
   cpuLimit: z.number().optional(),
   updateStage: UpdateStageSchema.default('none'),
@@ -65,7 +64,6 @@ export const CreateServerRequestSchema = z.object({
     protocol: z.enum(['tcp', 'udp']).default('tcp'),
     userFacing: z.boolean().optional()
   })).optional(),
-  environment: z.record(z.string()).optional(),
   memory: z.string().optional(),
   cpuLimit: z.number().optional(),
   restartAfterMaintenance: z.boolean().optional()

@@ -16,14 +16,11 @@ describe('Template validation', () => {
       },
       execution: {
         executable: 'server.jar',
-        command: 'java -Xmx{MEMORY} -Xms{MEMORY} -jar server.jar nogui',
+        command: 'java -Xmx2G -Xms2G -jar server.jar nogui',
         stopTimeout: 30
       },
       defaultPorts: [
         { container: 25565, protocol: 'tcp', description: 'Minecraft server port' }
-      ],
-      variables: [
-        { name: 'MEMORY', description: 'Server memory allocation', defaultValue: '2G', required: false }
       ],
       requiredFiles: ['server.jar']
     };

@@ -132,10 +132,7 @@ class DockerManagerService {
     const containerName = this.getContainerName(serverConfig.id);
     const labels = this.getLabels(serverConfig.id);
 
-    const command = this.substituteVariables(
-      template.execution.command,
-      serverConfig.environment
-    );
+    const command = template.execution.command;
 
     const portBindings: Record<string, Array<{ HostPort: string }>> = {};
     const exposedPorts: Record<string, object> = {};
@@ -150,7 +147,7 @@ class DockerManagerService {
       Image: template.docker.baseImage,
       name: containerName,
       Labels: labels,
-      User: '1000:1000', // Run as non-root user (required by Unreal Engine games, best practice for all)
+      ...(template.execution.requiresNonRoot && { User: '1000:1000' }),
       Cmd: ['sh', '-c', command],
       WorkingDir: template.docker.mountPath,
       ExposedPorts: exposedPorts,
@@ -160,10 +157,7 @@ class DockerManagerService {
         RestartPolicy: { Name: 'no' }
       },
       Env: [
-        `HOME=${template.docker.mountPath}`, // Ensure HOME is set for non-root user
-        ...Object.entries(serverConfig.environment).map(
-          ([key, value]) => `${key}=${value}`
-        )
+        ...(template.execution.requiresNonRoot ? [`HOME=${template.docker.mountPath}`] : [])
       ]
     };
 
@@ -339,17 +333,6 @@ class DockerManagerService {
       logger.error({ error, imageName }, 'Failed to pull Docker image');
       throw new DockerError(`Failed to pull image ${imageName}: ${(error as Error).message}`);
     }
-  }
-
-  private substituteVariables(
-    command: string,
-    variables: Record<string, string>
-  ): string {
-    let result = command;
-    for (const [key, value] of Object.entries(variables)) {
-      result = result.replace(new RegExp(`\\{${key}\\}`, 'g'), value);
-    }
-    return result;
   }
 
   private parseMemoryString(memory: string): number {

@@ -197,16 +197,6 @@ class ServerService {
       protocol: p.protocol
     })) || [];
 
-    // Build environment with template defaults, then override with request values
-    const defaultEnvironment: Record<string, string> = {};
-    if (template.variables) {
-      for (const variable of template.variables) {
-        if (variable.defaultValue !== undefined) {
-          defaultEnvironment[variable.name] = variable.defaultValue;
-        }
-      }
-    }
-
     const serverConfig: ServerConfig = {
       id: serverId,
       name: request.name,
@@ -216,7 +206,6 @@ class ServerService {
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString(),
       ports: request.ports || defaultPorts,
-      environment: { ...defaultEnvironment, ...request.environment },
       updateStage: 'none',
       memory: request.memory,
       cpuLimit: request.cpuLimit,
