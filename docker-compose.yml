@@ -8,7 +8,7 @@ services:
     ports:
       - "3001:3001"
     volumes:
-      - ./garcon-data:/garcon-data
+      - "${GARCON_DATA_DIR:-./garcon-data}:/garcon-data"
       - "${GARCON_HOST_IMPORT_PATH:-./garcon-import}:/garcon-import:ro"
       - /var/run/docker.sock:/var/run/docker.sock
     environment:
