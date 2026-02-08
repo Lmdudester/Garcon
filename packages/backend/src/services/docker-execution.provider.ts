@@ -1,25 +1,19 @@
 import Docker from 'dockerode';
-import type { Container, ContainerInfo, ContainerCreateOptions } from 'dockerode';
-import type { ServerConfig, Template, ServerStatus } from '@garcon/shared';
+import type { ContainerInfo, ContainerCreateOptions } from 'dockerode';
+import type { ServerConfig, Template } from '@garcon/shared';
 import { config } from '../config/index.js';
 import { createChildLogger } from '../utils/logger.js';
 import { DockerError } from '../utils/errors.js';
+import type { ExecutionProvider, ProcessStatus } from './execution-provider.js';
 
-const logger = createChildLogger('docker-manager');
+const logger = createChildLogger('docker-provider');
 
-interface ContainerStatus {
-  exists: boolean;
-  running: boolean;
-  containerId?: string;
-  state?: string;
-}
+type ProcessExitCallback = (serverId: string, exitCode?: number) => void;
 
-type ContainerExitCallback = (serverId: string, exitCode?: number) => void;
-
-class DockerManagerService {
+class DockerExecutionProvider implements ExecutionProvider {
   private docker: Docker;
   private containerCache: Map<string, string> = new Map();
-  private exitCallbacks: ContainerExitCallback[] = [];
+  private exitCallbacks: ProcessExitCallback[] = [];
   private eventStream: NodeJS.ReadableStream | null = null;
 
   constructor() {
@@ -28,7 +22,7 @@ class DockerManagerService {
     });
   }
 
-  onContainerExit(callback: ContainerExitCallback): () => void {
+  onProcessExit(callback: ProcessExitCallback): () => void {
     this.exitCallbacks.push(callback);
     return () => {
       const index = this.exitCallbacks.indexOf(callback);
@@ -88,7 +82,7 @@ class DockerManagerService {
     };
   }
 
-  async checkConnection(): Promise<boolean> {
+  async checkAvailability(): Promise<boolean> {
     try {
       await this.docker.ping();
       return true;
@@ -98,7 +92,7 @@ class DockerManagerService {
     }
   }
 
-  async getContainerStatus(serverId: string): Promise<ContainerStatus> {
+  async getProcessStatus(serverId: string): Promise<ProcessStatus> {
     const containerName = this.getContainerName(serverId);
 
     try {
@@ -115,8 +109,7 @@ class DockerManagerService {
       return {
         exists: true,
         running: containerInfo.State === 'running',
-        containerId: containerInfo.Id,
-        state: containerInfo.State
+        processId: containerInfo.Id
       };
     } catch (error) {
       logger.error({ error, serverId }, 'Failed to get container status');
@@ -124,15 +117,17 @@ class DockerManagerService {
     }
   }
 
-  async createContainer(
+  async startServer(
     serverConfig: ServerConfig,
     template: Template,
     serverDataPath: string
   ): Promise<string> {
+    if (!template.docker) {
+      throw new DockerError('Docker configuration is required for Docker execution mode');
+    }
+
     const containerName = this.getContainerName(serverConfig.id);
     const labels = this.getLabels(serverConfig.id);
-
-    const command = template.execution.command;
 
     const portBindings: Record<string, Array<{ HostPort: string }>> = {};
     const exposedPorts: Record<string, object> = {};
@@ -143,22 +138,30 @@ class DockerManagerService {
       portBindings[containerPort] = [{ HostPort: String(portMapping.host) }];
     }
 
+    const envVars: string[] = [];
+    if (template.execution.requiresNonRoot) {
+      envVars.push(`HOME=${template.docker.mountPath}`);
+    }
+    if (template.docker.environment) {
+      for (const [key, value] of Object.entries(template.docker.environment)) {
+        envVars.push(`${key}=${value}`);
+      }
+    }
+
     const createOptions: ContainerCreateOptions = {
       Image: template.docker.baseImage,
       name: containerName,
       Labels: labels,
       ...(template.execution.requiresNonRoot && { User: '1000:1000' }),
-      Cmd: ['sh', '-c', command],
-      WorkingDir: template.docker.mountPath,
+      ...(template.execution.command && { Cmd: ['sh', '-c', template.execution.command] }),
+      ...(template.execution.command && { WorkingDir: template.docker.mountPath }),
       ExposedPorts: exposedPorts,
       HostConfig: {
         Binds: [`${serverDataPath}:${template.docker.mountPath}`],
         PortBindings: portBindings,
         RestartPolicy: { Name: 'no' }
       },
-      Env: [
-        ...(template.execution.requiresNonRoot ? [`HOME=${template.docker.mountPath}`] : [])
-      ]
+      Env: envVars
     };
 
     if (serverConfig.memory) {
@@ -175,59 +178,40 @@ class DockerManagerService {
     }
 
     try {
-      const existingStatus = await this.getContainerStatus(serverConfig.id);
-      if (existingStatus.exists && existingStatus.containerId) {
-        const container = this.docker.getContainer(existingStatus.containerId);
+      const existingStatus = await this.getProcessStatus(serverConfig.id);
+      if (existingStatus.exists && existingStatus.processId) {
+        const container = this.docker.getContainer(existingStatus.processId);
         await container.remove({ force: true });
         logger.info({ serverId: serverConfig.id }, 'Removed existing container');
       }
 
-      // Ensure image exists, pull if needed
       await this.ensureImage(template.docker.baseImage);
 
       const container = await this.docker.createContainer(createOptions);
       logger.info({ serverId: serverConfig.id, containerId: container.id }, 'Container created');
 
+      // Start the container immediately
+      await container.start();
+      logger.info({ serverId: serverConfig.id }, 'Container started');
+
       this.containerCache.set(serverConfig.id, container.id);
       return container.id;
     } catch (error) {
-      logger.error({ error, serverId: serverConfig.id }, 'Failed to create container');
-      throw new DockerError(`Failed to create container: ${(error as Error).message}`);
-    }
-  }
-
-  async startContainer(serverId: string): Promise<void> {
-    const status = await this.getContainerStatus(serverId);
-
-    if (!status.exists || !status.containerId) {
-      throw new DockerError(`Container for server ${serverId} does not exist`);
-    }
-
-    if (status.running) {
-      logger.info({ serverId }, 'Container already running');
-      return;
-    }
-
-    try {
-      const container = this.docker.getContainer(status.containerId);
-      await container.start();
-      logger.info({ serverId }, 'Container started');
-    } catch (error) {
-      logger.error({ error, serverId }, 'Failed to start container');
+      logger.error({ error, serverId: serverConfig.id }, 'Failed to create/start container');
       throw new DockerError(`Failed to start container: ${(error as Error).message}`);
     }
   }
 
-  async stopContainer(serverId: string, timeout?: number): Promise<void> {
-    const status = await this.getContainerStatus(serverId);
+  async stopServer(serverId: string, _template: Template, timeout?: number): Promise<void> {
+    const status = await this.getProcessStatus(serverId);
 
-    if (!status.exists || !status.containerId) {
+    if (!status.exists || !status.processId) {
       logger.info({ serverId }, 'Container does not exist, nothing to stop');
       return;
     }
 
     try {
-      const container = this.docker.getContainer(status.containerId);
+      const container = this.docker.getContainer(status.processId);
 
       if (status.running) {
         await container.stop({ t: timeout ?? config.docker.defaultStopTimeout });
@@ -244,16 +228,16 @@ class DockerManagerService {
     }
   }
 
-  async removeContainer(serverId: string): Promise<void> {
-    const status = await this.getContainerStatus(serverId);
+  async removeProcess(serverId: string): Promise<void> {
+    const status = await this.getProcessStatus(serverId);
 
-    if (!status.exists || !status.containerId) {
+    if (!status.exists || !status.processId) {
       logger.info({ serverId }, 'Container does not exist, nothing to remove');
       return;
     }
 
     try {
-      const container = this.docker.getContainer(status.containerId);
+      const container = this.docker.getContainer(status.processId);
       await container.remove({ force: true });
       this.containerCache.delete(serverId);
       logger.info({ serverId }, 'Container removed');
@@ -263,7 +247,7 @@ class DockerManagerService {
     }
   }
 
-  async reconcileContainers(): Promise<void> {
+  async reconcile(): Promise<void> {
     try {
       const containers = await this.docker.listContainers({
         all: true,
@@ -281,6 +265,7 @@ class DockerManagerService {
       logger.info({ count: containers.length }, 'Container reconciliation complete');
     } catch (error) {
       logger.error({ error }, 'Failed to reconcile containers');
+      throw error;
     }
   }
 
@@ -357,14 +342,6 @@ class DockerManagerService {
         return value;
     }
   }
-
-  getServerStatus(serverId: string): ServerStatus {
-    const containerId = this.containerCache.get(serverId);
-    if (!containerId) {
-      return 'stopped';
-    }
-    return 'running';
-  }
 }
 
-export const dockerManager = new DockerManagerService();
+export const dockerProvider = new DockerExecutionProvider();

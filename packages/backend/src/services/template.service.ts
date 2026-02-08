@@ -13,6 +13,7 @@ const DEFAULT_TEMPLATES: Template[] = [
     id: 'minecraft',
     name: 'Minecraft Java Edition',
     description: 'Minecraft Java Edition server using Eclipse Temurin 21',
+    executionMode: 'docker',
     docker: {
       baseImage: 'eclipse-temurin:21-jre',
       mountPath: '/server'
@@ -32,6 +33,7 @@ const DEFAULT_TEMPLATES: Template[] = [
     id: 'valheim',
     name: 'Valheim Dedicated Server',
     description: 'Valheim dedicated server for Linux',
+    executionMode: 'docker',
     docker: {
       baseImage: 'ubuntu:22.04',
       mountPath: '/server'
@@ -51,20 +53,51 @@ const DEFAULT_TEMPLATES: Template[] = [
   {
     id: 'vrising',
     name: 'V Rising Dedicated Server',
-    description: 'V Rising dedicated server using Wine',
+    description: 'V Rising dedicated server powered by sknnr (Wine + SteamCMD)',
+    executionMode: 'docker',
     docker: {
-      baseImage: 'ubuntu:22.04',
-      mountPath: '/server'
+      baseImage: 'sknnr/vrising-dedicated-server',
+      mountPath: '/opt/steam/vrising',
+      environment: {
+        TZ: 'America/New_York',
+        SERVER_NAME: 'V Rising Server',
+        SAVE_NAME: 'world1',
+        GAME_PORT: '9876',
+        QUERY_PORT: '9877'
+      }
     },
     execution: {
-      executable: 'VRisingServer.exe',
-      command: 'wine VRisingServer.exe -persistentDataPath /server/save-data -serverName "V Rising Server"',
-      stopTimeout: 60,
+      stopTimeout: 120,
       requiresNonRoot: false
     },
     defaultPorts: [
-      { container: 9876, protocol: 'udp', description: 'Game port' },
+      { container: 9876, protocol: 'udp', description: 'Game port', userFacing: true },
       { container: 9877, protocol: 'udp', description: 'Query port' }
+    ]
+  },
+  {
+    id: 'vrising-native',
+    name: 'V Rising (Native Windows)',
+    description: 'V Rising dedicated server running natively on Windows',
+    executionMode: 'native',
+    execution: {
+      executable: 'VRisingServer.exe',
+      args: [
+        '-persistentDataPath', './save-data',
+        '-logFile', './logs/VRisingServer.log',
+      ],
+      stopTimeout: 120,
+      requiresNonRoot: false,
+      rcon: {
+        enabled: true,
+        port: 25575,
+        password: '',
+        shutdownCommand: 'shutdown 1 "Server shutting down"',
+      }
+    },
+    defaultPorts: [
+      { container: 9876, protocol: 'udp', description: 'Game port', userFacing: true },
+      { container: 9877, protocol: 'udp', description: 'Query port' },
     ],
     requiredFiles: ['VRisingServer.exe']
   }
@@ -138,6 +171,7 @@ class TemplateService {
       id: template.id,
       name: template.name,
       description: template.description,
+      executionMode: template.executionMode,
       defaultPorts: template.defaultPorts
     };
   }

@@ -1,7 +1,8 @@
 import { startServer } from './app.js';
 import { initializeDataDirectory } from './services/file-manager.service.js';
 import { templateService } from './services/template.service.js';
-import { dockerManager } from './services/docker-manager.service.js';
+import { dockerProvider } from './services/docker-execution.provider.js';
+import { nativeProvider } from './services/native-execution.provider.js';
 import { serverService } from './services/server.service.js';
 import { maintenanceService } from './services/maintenance.service.js';
 import { logger } from './utils/logger.js';
@@ -16,8 +17,15 @@ async function main() {
     await templateService.initializeDefaultTemplates();
     logger.info('Default templates initialized');
 
-    await dockerManager.reconcileContainers();
-    logger.info('Docker containers reconciled');
+    try {
+      await dockerProvider.reconcile();
+      logger.info('Docker containers reconciled');
+    } catch (error) {
+      logger.warn({ error }, 'Docker reconciliation failed (Docker may not be running)');
+    }
+
+    await nativeProvider.reconcile();
+    logger.info('Native processes reconciled');
 
     await serverService.initialize();
     logger.info('Server service initialized');

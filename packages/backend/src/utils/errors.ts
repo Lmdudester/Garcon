@@ -55,3 +55,10 @@ export class ServerStateError extends AppError {
     this.name = 'ServerStateError';
   }
 }
+
+export class NativeProcessError extends AppError {
+  constructor(message: string, details?: Record<string, unknown>) {
+    super('NATIVE_PROCESS_ERROR', message, 500, details);
+    this.name = 'NativeProcessError';
+  }
+}

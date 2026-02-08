@@ -21,8 +21,10 @@ interface ServerControlsProps {
 }
 
 export function ServerControls({ server }: ServerControlsProps) {
-  const { startServer, stopServer, restartServer, acknowledgeCrash } = useServers();
+  const { startServer, stopServer, restartServer, acknowledgeCrash, templates } = useServers();
   const { isAdmin } = useViewMode();
+  const template = templates.find(t => t.id === server.templateId);
+  const isNative = template?.executionMode === 'native';
   const [isLoading, setIsLoading] = useState(false);
   const [editDialogOpen, setEditDialogOpen] = useState(false);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
@@ -95,15 +97,17 @@ export function ServerControls({ server }: ServerControlsProps) {
             <Square className="h-4 w-4 mr-1" />
             Stop
           </Button>
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={handleRestart}
-            disabled={isLoading || isTransitioning}
-          >
-            <RotateCcw className="h-4 w-4 mr-1" />
-            Restart
-          </Button>
+          {!isNative && (
+            <Button
+              size="sm"
+              variant="outline"
+              onClick={handleRestart}
+              disabled={isLoading || isTransitioning}
+            >
+              <RotateCcw className="h-4 w-4 mr-1" />
+              Restart
+            </Button>
+          )}
         </>
       )}
 

@@ -3,7 +3,9 @@ import { createChildLogger } from '../utils/logger.js';
 import { serverService } from './server.service.js';
 import { backupService } from './backup.service.js';
 import { templateService } from './template.service.js';
-import { dockerManager } from './docker-manager.service.js';
+import { dockerProvider } from './docker-execution.provider.js';
+import { nativeProvider } from './native-execution.provider.js';
+import type { ExecutionProvider } from './execution-provider.js';
 
 const logger = createChildLogger('maintenance-service');
 
@@ -120,6 +122,11 @@ class MaintenanceService {
     logger.info('Maintenance service shut down');
   }
 
+  private getProvider(templateId: string): ExecutionProvider {
+    const template = templateService.getTemplateSync(templateId);
+    return template?.executionMode === 'native' ? nativeProvider : dockerProvider;
+  }
+
   /**
    * Runs the maintenance routine:
    * 1. Gets all running servers
@@ -147,9 +154,10 @@ class MaintenanceService {
         await backupService.createBackup(server.id, 'auto');
         logger.info({ serverId: server.id }, 'Maintenance backup created');
 
-        // Stop the server
+        // Stop the server using the appropriate provider
         const template = await templateService.getTemplate(server.templateId);
-        await dockerManager.stopContainer(server.id, template.execution.stopTimeout);
+        const provider = this.getProvider(server.templateId);
+        await provider.stopServer(server.id, template, template.execution.stopTimeout);
         logger.info({ serverId: server.id }, 'Server stopped for maintenance');
 
         // Update server state to stopped

@@ -26,10 +26,12 @@ import {
   writeYaml,
   listDirectories
 } from './file-manager.service.js';
-import { dockerManager } from './docker-manager.service.js';
+import { dockerProvider } from './docker-execution.provider.js';
+import { nativeProvider } from './native-execution.provider.js';
 import { templateService } from './template.service.js';
 import { backupService } from './backup.service.js';
 import { websocketService } from './websocket.service.js';
+import type { ExecutionProvider } from './execution-provider.js';
 
 const logger = createChildLogger('server-service');
 
@@ -67,16 +69,20 @@ class ServerService {
   async initialize(): Promise<void> {
     await this.loadServers();
 
-    // Register for container exit events
-    dockerManager.onContainerExit((serverId, exitCode) => {
-      this.handleContainerExit(serverId, exitCode);
+    // Register for process exit events on both providers
+    dockerProvider.onProcessExit((serverId, exitCode) => {
+      this.handleProcessExit(serverId, exitCode);
+    });
+    nativeProvider.onProcessExit((serverId, exitCode) => {
+      this.handleProcessExit(serverId, exitCode);
     });
 
-    // Start monitoring Docker events
-    await dockerManager.startEventMonitoring();
+    // Start monitoring events on both providers
+    await dockerProvider.startEventMonitoring();
+    await nativeProvider.startEventMonitoring();
   }
 
-  private handleContainerExit(serverId: string, exitCode?: number): void {
+  private handleProcessExit(serverId: string, exitCode?: number): void {
     const state = this.servers.get(serverId);
     if (!state) return;
 
@@ -90,6 +96,11 @@ class ServerService {
     }
   }
 
+  private getProvider(templateId: string): ExecutionProvider {
+    const template = templateService.getTemplateSync(templateId);
+    return template?.executionMode === 'native' ? nativeProvider : dockerProvider;
+  }
+
   private async loadServers(): Promise<void> {
     const serverDirs = await listDirectories(config.paths.serversDir);
 
@@ -100,13 +111,14 @@ class ServerService {
 
         if (await pathExists(configPath)) {
           const serverConfig = await readYaml<ServerConfig>(configPath);
-          const containerStatus = await dockerManager.getContainerStatus(serverId);
+          const provider = this.getProvider(serverConfig.templateId);
+          const processStatus = await provider.getProcessStatus(serverId);
 
           let status: ServerStatus = 'stopped';
           let startedAt: string | undefined;
           const updateStage = serverConfig.updateStage || 'none';
 
-          if (containerStatus.running) {
+          if (processStatus.running) {
             status = 'running';
             startedAt = new Date().toISOString();
           } else if (updateStage !== 'none') {
@@ -240,7 +252,8 @@ class ServerService {
       throw new ServerStateError('Cannot delete a running server. Stop it first.');
     }
 
-    await dockerManager.removeContainer(id);
+    const provider = this.getProvider(state.config.templateId);
+    await provider.removeProcess(id);
 
     const serverPath = path.join(config.paths.serversDir, id);
     await deleteDirectory(serverPath);
@@ -309,11 +322,15 @@ class ServerService {
 
     try {
       const template = await templateService.getTemplate(state.config.templateId);
-      // Use hostDataDir for Docker bind mounts (supports Docker-in-Docker)
-      const serverPath = path.join(config.paths.hostDataDir, 'servers', id);
+      const provider = this.getProvider(state.config.templateId);
 
-      await dockerManager.createContainer(state.config, template, serverPath);
-      await dockerManager.startContainer(id);
+      // For native mode, use serversDir directly (no Docker bind mount indirection)
+      // For Docker mode, use hostDataDir for bind mounts (supports Docker-in-Docker)
+      const serverPath = template.executionMode === 'native'
+        ? path.join(config.paths.serversDir, id)
+        : path.join(config.paths.hostDataDir, 'servers', id);
+
+      await provider.startServer(state.config, template, serverPath);
 
       const startedAt = new Date().toISOString();
       state.status = 'running';
@@ -344,12 +361,13 @@ class ServerService {
 
     try {
       const template = await templateService.getTemplate(state.config.templateId);
+      const provider = this.getProvider(state.config.templateId);
 
       if (config.backup.autoBackupOnStop) {
         await backupService.createBackup(id, 'auto');
       }
 
-      await dockerManager.stopContainer(id, template.execution.stopTimeout);
+      await provider.stopServer(id, template, template.execution.stopTimeout);
 
       state.status = 'stopped';
       state.startedAt = undefined;
@@ -469,15 +487,16 @@ class ServerService {
       throw new ServerStateError('Server is not in crashed state');
     }
 
-    // Remove the crashed container (cleanup for debugging is complete)
-    await dockerManager.removeContainer(id);
+    // Remove the crashed process/container (cleanup for debugging is complete)
+    const provider = this.getProvider(state.config.templateId);
+    await provider.removeProcess(id);
 
     state.status = 'stopped';
     state.startedAt = undefined;
 
     websocketService.broadcastServerStatus(id, 'stopped');
 
-    logger.info({ serverId: id }, 'Crash acknowledged, container removed');
+    logger.info({ serverId: id }, 'Crash acknowledged, process removed');
 
     const template = templateService.getTemplateSync(state.config.templateId);
     return this.toResponse(id, state, template?.name);
