@@ -31,7 +31,7 @@ import { nativeProvider } from './native-execution.provider.js';
 import { templateService } from './template.service.js';
 import { backupService } from './backup.service.js';
 import { websocketService } from './websocket.service.js';
-import type { ExecutionProvider } from './execution-provider.js';
+import type { ExecutionProvider, ProcessStatus } from './execution-provider.js';
 
 const logger = createChildLogger('server-service');
 
@@ -112,7 +112,13 @@ class ServerService {
         if (await pathExists(configPath)) {
           const serverConfig = await readYaml<ServerConfig>(configPath);
           const provider = this.getProvider(serverConfig.templateId);
-          const processStatus = await provider.getProcessStatus(serverId);
+
+          let processStatus: ProcessStatus = { exists: false, running: false };
+          try {
+            processStatus = await provider.getProcessStatus(serverId);
+          } catch (error) {
+            logger.warn({ error, serverId }, 'Could not check process status, assuming stopped');
+          }
 
           let status: ServerStatus = 'stopped';
           let startedAt: string | undefined;
