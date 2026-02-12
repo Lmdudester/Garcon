@@ -11,6 +11,7 @@ import { serverRoutes } from './routes/server.routes.js';
 import { templateRoutes } from './routes/template.routes.js';
 import { backupRoutes } from './routes/backup.routes.js';
 import { websocketRoutes } from './routes/websocket.routes.js';
+import { webAppRoutes } from './routes/web-app.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -34,6 +35,7 @@ export async function buildApp() {
   await app.register(serverRoutes, { prefix: '/api' });
   await app.register(templateRoutes, { prefix: '/api' });
   await app.register(backupRoutes, { prefix: '/api' });
+  await app.register(webAppRoutes, { prefix: '/api' });
   await app.register(websocketRoutes, { prefix: '/ws' });
 
   // Serve frontend static files in production

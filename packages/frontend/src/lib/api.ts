@@ -7,7 +7,11 @@ import type {
   CreateBackupRequest,
   RestoreBackupResponse,
   ApiErrorResponse,
-  RuntimeConfigResponse
+  RuntimeConfigResponse,
+  WebAppResponse,
+  CreateWebAppRequest,
+  UpdateWebAppRequest,
+  AvailableContainer
 } from '@garcon/shared';
 
 const API_BASE = '/api';
@@ -109,6 +113,13 @@ export const api = {
   },
   config: {
     getRuntime: () => get<RuntimeConfigResponse>('/config'),
+  },
+  webApps: {
+    list: () => get<WebAppResponse[]>('/web-apps'),
+    listContainers: () => get<AvailableContainer[]>('/web-apps/containers'),
+    create: (data: CreateWebAppRequest) => post<WebAppResponse>('/web-apps', data),
+    edit: (id: string, data: UpdateWebAppRequest) => patch<WebAppResponse>(`/web-apps/${id}`, data),
+    delete: (id: string) => del<void>(`/web-apps/${id}`),
   },
 };
 

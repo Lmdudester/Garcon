@@ -1,5 +1,6 @@
 import { ToastProvider } from '@/context/ToastContext';
 import { ServerProvider } from '@/context/ServerContext';
+import { WebAppProvider } from '@/context/WebAppContext';
 import { WebSocketProvider } from '@/context/WebSocketContext';
 import { ViewModeProvider } from '@/context/ViewModeContext';
 import { MainLayout } from '@/components/layout/MainLayout';
@@ -11,8 +12,10 @@ function App() {
       <WebSocketProvider>
         <ViewModeProvider>
           <ServerProvider>
-            <MainLayout />
-            <Toaster />
+            <WebAppProvider>
+              <MainLayout />
+              <Toaster />
+            </WebAppProvider>
           </ServerProvider>
         </ViewModeProvider>
       </WebSocketProvider>

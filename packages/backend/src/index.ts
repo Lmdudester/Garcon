@@ -5,6 +5,7 @@ import { dockerProvider } from './services/docker-execution.provider.js';
 import { nativeProvider } from './services/native-execution.provider.js';
 import { serverService } from './services/server.service.js';
 import { maintenanceService } from './services/maintenance.service.js';
+import { webAppService } from './services/web-app.service.js';
 import { logger } from './utils/logger.js';
 
 async function main() {
@@ -29,6 +30,9 @@ async function main() {
 
     await serverService.initialize();
     logger.info('Server service initialized');
+
+    await webAppService.initialize();
+    logger.info('Web app service initialized');
 
     maintenanceService.initialize();
     logger.info('Maintenance service initialized');

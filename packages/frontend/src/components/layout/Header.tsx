@@ -1,7 +1,6 @@
 import { Wifi, WifiOff, Shield, User } from 'lucide-react';
 import { useWebSocket } from '@/context/WebSocketContext';
 import { useViewMode } from '@/context/ViewModeContext';
-import { ImportServerDialog } from '@/components/servers/ImportServerDialog';
 import { Button } from '@/components/ui/button';
 
 export function Header() {
@@ -30,8 +29,6 @@ export function Header() {
               </>
             )}
           </div>
-
-          {isAdmin && <ImportServerDialog />}
 
           <Button
             variant="ghost"

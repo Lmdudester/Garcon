@@ -83,3 +83,21 @@ export {
   RuntimeConfigResponseSchema,
   type RuntimeConfigResponse
 } from './types/config.js';
+
+// Web App types
+export {
+  ContainerStatusSchema,
+  WebAppLinkSchema,
+  WebAppMetadataSchema,
+  WebAppResponseSchema,
+  CreateWebAppRequestSchema,
+  UpdateWebAppRequestSchema,
+  AvailableContainerSchema,
+  type ContainerStatus,
+  type WebAppLink,
+  type WebAppMetadata,
+  type WebAppResponse,
+  type CreateWebAppRequest,
+  type UpdateWebAppRequest,
+  type AvailableContainer
+} from './types/web-app.js';

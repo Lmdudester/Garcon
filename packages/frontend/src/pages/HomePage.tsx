@@ -1,5 +1,6 @@
 import { ServerList } from '@/components/servers/ServerList';
 import { ServerCardSkeleton } from '@/components/servers/ServerCardSkeleton';
+import { WebAppList } from '@/components/web-apps/WebAppList';
 import { useServers } from '@/context/ServerContext';
 import { Button } from '@/components/ui/button';
 import { AlertCircle, RefreshCw } from 'lucide-react';
@@ -33,5 +34,12 @@ export function HomePage() {
     );
   }
 
-  return <ServerList />;
+  return (
+    <>
+      <WebAppList />
+      <div className="mt-8">
+        <ServerList />
+      </div>
+    </>
+  );
 }

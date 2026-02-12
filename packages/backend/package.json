@@ -19,6 +19,7 @@
     "@fastify/websocket": "^10.0.0",
     "@garcon/shared": "workspace:*",
     "archiver": "^7.0.0",
+    "cheerio": "^1.2.0",
     "dockerode": "^4.0.0",
     "dotenv": "^16.4.0",
     "fastify": "^4.26.0",
