@@ -44,16 +44,25 @@ export function ImportServerDialog() {
   const [restartAfterMaintenance, setRestartAfterMaintenance] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [importPath, setImportPath] = useState<string | null>(null);
+  const [folders, setFolders] = useState<string[]>([]);
+  const [foldersLoading, setFoldersLoading] = useState(false);
 
   const { templates, importServer } = useServers();
   const { toast } = useToast();
 
-  // Fetch import path when dialog opens
+  // Fetch import path and folders when dialog opens
   useEffect(() => {
-    if (open && !importPath) {
-      api.config.getRuntime()
-        .then((config) => setImportPath(config.importPath))
-        .catch(() => setImportPath(null));
+    if (open) {
+      if (!importPath) {
+        api.config.getRuntime()
+          .then((config) => setImportPath(config.importPath))
+          .catch(() => setImportPath(null));
+      }
+      setFoldersLoading(true);
+      api.config.listImportFolders()
+        .then((res) => setFolders(res.folders))
+        .catch(() => setFolders([]))
+        .finally(() => setFoldersLoading(false));
     }
   }, [open, importPath]);
 
@@ -223,13 +232,24 @@ export function ImportServerDialog() {
             </div>
             <div className="grid gap-2">
               <Label htmlFor="sourcePath">Folder Name</Label>
-              <Input
-                id="sourcePath"
-                placeholder="My Server"
-                value={sourcePath}
-                onChange={(e) => setSourcePath(e.target.value)}
-                required
-              />
+              <Select value={sourcePath} onValueChange={setSourcePath}>
+                <SelectTrigger>
+                  <SelectValue placeholder={foldersLoading ? 'Loading folders...' : 'Select a folder'} />
+                </SelectTrigger>
+                <SelectContent>
+                  {folders.length === 0 ? (
+                    <div className="px-2 py-1.5 text-sm text-muted-foreground">
+                      No folders found in import directory
+                    </div>
+                  ) : (
+                    folders.map((folder) => (
+                      <SelectItem key={folder} value={folder}>
+                        {folder}
+                      </SelectItem>
+                    ))
+                  )}
+                </SelectContent>
+              </Select>
               <p className="text-xs text-muted-foreground">
                 Name of your server folder within the import directory
               </p>

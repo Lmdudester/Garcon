@@ -113,6 +113,7 @@ export const api = {
   },
   config: {
     getRuntime: () => get<RuntimeConfigResponse>('/config'),
+    listImportFolders: () => get<{ folders: string[] }>('/import/folders'),
   },
   webApps: {
     list: () => get<WebAppResponse[]>('/web-apps'),
