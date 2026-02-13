@@ -13,6 +13,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -27,6 +28,8 @@ export function AddWebAppDialog() {
   const [open, setOpen] = useState(false);
   const [containerName, setContainerName] = useState('');
   const [url, setUrl] = useState('');
+  const [name, setName] = useState('');
+  const [description, setDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [containers, setContainers] = useState<AvailableContainer[]>([]);
   const [loadingContainers, setLoadingContainers] = useState(false);
@@ -49,7 +52,14 @@ export function AddWebAppDialog() {
 
     setIsSubmitting(true);
     try {
-      await createWebApp({ containerName, url });
+      const trimmedName = name.trim();
+      const trimmedDesc = description.trim();
+      await createWebApp({
+        containerName,
+        url,
+        ...(trimmedName && { name: trimmedName }),
+        ...(trimmedDesc && { description: trimmedDesc }),
+      });
       setOpen(false);
       resetForm();
     } catch {
@@ -62,6 +72,8 @@ export function AddWebAppDialog() {
   const resetForm = () => {
     setContainerName('');
     setUrl('');
+    setName('');
+    setDescription('');
     setContainers([]);
   };
 
@@ -114,6 +126,30 @@ export function AddWebAppDialog() {
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="name">Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="name"
+                placeholder="Custom display name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="description">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <span className="text-xs text-muted-foreground">{description.length}/250</span>
+              </div>
+              <Textarea
+                id="description"
+                placeholder="Custom description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={250}
+                rows={2}
               />
             </div>
           </div>

@@ -82,6 +82,8 @@ class WebAppService {
       id: generateId(data.containerName),
       containerName: data.containerName,
       url: data.url,
+      name: data.name ?? null,
+      description: data.description ?? null,
       createdAt: now,
       updatedAt: now,
     };
@@ -117,6 +119,8 @@ class WebAppService {
       id: current.id,
       containerName: data.containerName ?? current.containerName,
       url: data.url ?? current.url,
+      name: data.name !== undefined ? (data.name ?? null) : (current.name ?? null),
+      description: data.description !== undefined ? (data.description ?? null) : (current.description ?? null),
       createdAt: current.createdAt,
       updatedAt: new Date().toISOString(),
     };

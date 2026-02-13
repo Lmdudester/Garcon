@@ -22,7 +22,7 @@ export function DeleteWebAppDialog({ webApp, open, onOpenChange }: DeleteWebAppD
   const { deleteWebApp } = useWebApps();
   const [isDeleting, setIsDeleting] = useState(false);
 
-  const displayName = webApp.metadata.title || webApp.containerName;
+  const displayName = webApp.name || webApp.metadata.title || webApp.containerName;
 
   const handleDelete = async () => {
     setIsDeleting(true);

@@ -47,7 +47,10 @@ export function WebAppCard({ webApp }: WebAppCardProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
 
-  const title = webApp.metadata.title || getHostname(webApp.url);
+  const hostname = getHostname(webApp.url);
+  const title = webApp.name || webApp.metadata.title || hostname;
+  const showSubtitle = webApp.name && webApp.metadata.title && webApp.name !== webApp.metadata.title;
+  const description = webApp.description || webApp.metadata.description;
 
   return (
     <>
@@ -64,7 +67,12 @@ export function WebAppCard({ webApp }: WebAppCardProps) {
             ) : (
               <Globe className="h-5 w-5 shrink-0 text-muted-foreground" />
             )}
-            <CardTitle className="text-lg font-medium truncate">{title}</CardTitle>
+            <div className="min-w-0">
+              <CardTitle className="text-lg font-medium truncate">{title}</CardTitle>
+              {showSubtitle && (
+                <p className="text-xs text-muted-foreground truncate">{webApp.metadata.title}</p>
+              )}
+            </div>
           </div>
           <div className="flex items-center gap-2 shrink-0">
             <StatusIndicator status={webApp.containerStatus} />
@@ -93,9 +101,9 @@ export function WebAppCard({ webApp }: WebAppCardProps) {
           </div>
         </CardHeader>
         <CardContent>
-          {webApp.metadata.description && (
+          {description && (
             <p className="text-sm text-muted-foreground line-clamp-2 mb-3">
-              {webApp.metadata.description}
+              {description}
             </p>
           )}
           <div className="inline-flex items-center gap-1.5 text-sm">

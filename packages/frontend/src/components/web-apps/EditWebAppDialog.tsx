@@ -11,6 +11,7 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Textarea } from '@/components/ui/textarea';
 import {
   Select,
   SelectContent,
@@ -30,6 +31,8 @@ interface EditWebAppDialogProps {
 export function EditWebAppDialog({ webApp, open, onOpenChange }: EditWebAppDialogProps) {
   const [containerName, setContainerName] = useState(webApp.containerName);
   const [url, setUrl] = useState(webApp.url);
+  const [name, setName] = useState(webApp.name ?? '');
+  const [description, setDescription] = useState(webApp.description ?? '');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [containers, setContainers] = useState<AvailableContainer[]>([]);
   const [loadingContainers, setLoadingContainers] = useState(false);
@@ -41,6 +44,8 @@ export function EditWebAppDialog({ webApp, open, onOpenChange }: EditWebAppDialo
     if (open) {
       setContainerName(webApp.containerName);
       setUrl(webApp.url);
+      setName(webApp.name ?? '');
+      setDescription(webApp.description ?? '');
     }
   }, [open, webApp]);
 
@@ -68,7 +73,11 @@ export function EditWebAppDialog({ webApp, open, onOpenChange }: EditWebAppDialo
     }
   }, [open, webApp.containerName, webApp.containerStatus]);
 
-  const hasChanges = containerName !== webApp.containerName || url !== webApp.url;
+  const hasChanges =
+    containerName !== webApp.containerName ||
+    url !== webApp.url ||
+    name.trim() !== (webApp.name ?? '') ||
+    description.trim() !== (webApp.description ?? '');
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -76,9 +85,17 @@ export function EditWebAppDialog({ webApp, open, onOpenChange }: EditWebAppDialo
 
     setIsSubmitting(true);
     try {
-      const data: Record<string, string> = {};
+      const data: Record<string, string | null> = {};
       if (containerName !== webApp.containerName) data.containerName = containerName;
       if (url !== webApp.url) data.url = url;
+      const trimmedName = name.trim();
+      if (trimmedName !== (webApp.name ?? '')) {
+        data.name = trimmedName || null;
+      }
+      const trimmedDesc = description.trim();
+      if (trimmedDesc !== (webApp.description ?? '')) {
+        data.description = trimmedDesc || null;
+      }
 
       await editWebApp(webApp.id, data);
       onOpenChange(false);
@@ -129,6 +146,30 @@ export function EditWebAppDialog({ webApp, open, onOpenChange }: EditWebAppDialo
                 value={url}
                 onChange={(e) => setUrl(e.target.value)}
                 required
+              />
+            </div>
+            <div className="grid gap-2">
+              <Label htmlFor="edit-name">Name <span className="text-muted-foreground font-normal">(optional)</span></Label>
+              <Input
+                id="edit-name"
+                placeholder="Custom display name"
+                value={name}
+                onChange={(e) => setName(e.target.value)}
+                maxLength={100}
+              />
+            </div>
+            <div className="grid gap-2">
+              <div className="flex items-center justify-between">
+                <Label htmlFor="edit-description">Description <span className="text-muted-foreground font-normal">(optional)</span></Label>
+                <span className="text-xs text-muted-foreground">{description.length}/250</span>
+              </div>
+              <Textarea
+                id="edit-description"
+                placeholder="Custom description"
+                value={description}
+                onChange={(e) => setDescription(e.target.value)}
+                maxLength={250}
+                rows={2}
               />
             </div>
           </div>

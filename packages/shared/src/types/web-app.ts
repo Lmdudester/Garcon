@@ -7,6 +7,8 @@ export const WebAppLinkSchema = z.object({
   id: z.string().min(1),
   containerName: z.string().min(1),
   url: z.string().url(),
+  name: z.string().min(1).max(100).nullable().optional(),
+  description: z.string().max(250).nullable().optional(),
   createdAt: z.string().datetime(),
   updatedAt: z.string().datetime(),
 });
@@ -31,6 +33,8 @@ export type WebAppResponse = z.infer<typeof WebAppResponseSchema>;
 export const CreateWebAppRequestSchema = z.object({
   containerName: z.string().min(1),
   url: z.string().url(),
+  name: z.string().min(1).max(100).optional(),
+  description: z.string().max(250).optional(),
 });
 
 export type CreateWebAppRequest = z.infer<typeof CreateWebAppRequestSchema>;
@@ -38,6 +42,8 @@ export type CreateWebAppRequest = z.infer<typeof CreateWebAppRequestSchema>;
 export const UpdateWebAppRequestSchema = z.object({
   containerName: z.string().min(1).optional(),
   url: z.string().url().optional(),
+  name: z.string().min(1).max(100).nullable().optional(),
+  description: z.string().max(250).nullable().optional(),
 });
 
 export type UpdateWebAppRequest = z.infer<typeof UpdateWebAppRequestSchema>;
