@@ -12,7 +12,7 @@ export function ServerCard({ server }: ServerCardProps) {
   return (
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-        <CardTitle className="text-lg font-medium">{server.name}</CardTitle>
+        <CardTitle className="text-lg font-medium truncate min-w-0">{server.name}</CardTitle>
         <ServerStatus status={server.status} />
       </CardHeader>
       <CardContent>

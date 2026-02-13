@@ -11,21 +11,21 @@ export function Header() {
     <header className="sticky top-0 z-40 w-full border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
       <div className="container flex h-14 items-center justify-between">
         <div className="flex items-center gap-2">
-          <img src="/logo.png" alt="Garcon logo" className="h-[3.75rem] w-[3.75rem]" />
-          <span className="text-3xl font-bold">Garçon</span>
+          <img src="/logo.png" alt="Garcon logo" className="h-10 w-10 sm:h-[3.75rem] sm:w-[3.75rem]" />
+          <span className="text-xl sm:text-3xl font-bold">Garçon</span>
         </div>
 
-        <div className="flex items-center gap-4">
+        <div className="flex items-center gap-2 sm:gap-4">
           <div className="flex items-center gap-2 text-sm text-muted-foreground">
             {isConnected ? (
               <>
                 <Wifi className="h-4 w-4 text-green-500" />
-                <span>Connected</span>
+                <span className="hidden sm:inline">Connected</span>
               </>
             ) : (
               <>
                 <WifiOff className="h-4 w-4 text-red-500" />
-                <span>Disconnected</span>
+                <span className="hidden sm:inline">Disconnected</span>
               </>
             )}
           </div>
@@ -38,13 +38,13 @@ export function Header() {
           >
             {isAdmin ? (
               <>
-                <Shield className="h-4 w-4 mr-2" />
-                Admin View
+                <Shield className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">Admin View</span>
               </>
             ) : (
               <>
-                <User className="h-4 w-4 mr-2" />
-                User View
+                <User className="h-4 w-4 sm:mr-2" />
+                <span className="hidden sm:inline">User View</span>
               </>
             )}
           </Button>

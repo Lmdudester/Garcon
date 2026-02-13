@@ -74,7 +74,7 @@ export function ServerControls({ server }: ServerControlsProps) {
   };
 
   return (
-    <div className="flex items-center gap-2">
+    <div className="flex items-center gap-2 flex-wrap">
       {isStopped && !isUpdating && (
         <Button
           size="sm"

@@ -285,7 +285,7 @@ export function ImportServerDialog() {
               ) : (
                 <div className="space-y-2">
                   {ports.map((port, index) => (
-                    <div key={index} className="flex items-center gap-2">
+                    <div key={index} className="flex flex-wrap items-center gap-2">
                       <button
                         type="button"
                         onClick={() => setUserFacingPort(index)}
@@ -297,25 +297,25 @@ export function ImportServerDialog() {
                       >
                         <Star className={cn("h-4 w-4", port.userFacing && "fill-current")} />
                       </button>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-[70px]">
                         <Input
                           type="number"
                           min={1}
                           max={65535}
                           value={port.host}
                           onChange={(e) => updatePort(index, 'host', parseInt(e.target.value) || 0)}
-                          placeholder="Host port"
+                          placeholder="Host"
                         />
                       </div>
                       <span className="text-muted-foreground">→</span>
-                      <div className="flex-1">
+                      <div className="flex-1 min-w-[70px]">
                         <Input
                           type="number"
                           min={1}
                           max={65535}
                           value={port.container}
                           onChange={(e) => updatePort(index, 'container', parseInt(e.target.value) || 0)}
-                          placeholder="Container port"
+                          placeholder="Container"
                         />
                       </div>
                       <Select
