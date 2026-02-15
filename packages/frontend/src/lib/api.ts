@@ -78,6 +78,15 @@ async function patch<T, B = unknown>(path: string, body: B): Promise<T> {
   return handleResponse<T>(response);
 }
 
+async function put<T, B = unknown>(path: string, body: B): Promise<T> {
+  const response = await fetch(`${API_BASE}${path}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(body),
+  });
+  return handleResponse<T>(response);
+}
+
 export const api = {
   servers: {
     list: () => get<ServerResponse[]>('/servers'),
@@ -89,6 +98,7 @@ export const api = {
     stop: (id: string) => post<ServerResponse>(`/servers/${id}/stop`),
     restart: (id: string) => post<ServerResponse>(`/servers/${id}/restart`),
     acknowledgeCrash: (id: string) => post<ServerResponse>(`/servers/${id}/acknowledge-crash`),
+    reorder: (ids: string[]) => put<void>('/servers/order', { ids }),
     update: {
       initiate: (id: string) => post<{ sourcePath: string; backupTimestamp: string; backupPath: string }>(`/servers/${id}/update/initiate`),
       apply: (id: string) => post<ServerResponse>(`/servers/${id}/update/apply`),
@@ -121,6 +131,7 @@ export const api = {
     create: (data: CreateWebAppRequest) => post<WebAppResponse>('/web-apps', data),
     edit: (id: string, data: UpdateWebAppRequest) => patch<WebAppResponse>(`/web-apps/${id}`, data),
     delete: (id: string) => del<void>(`/web-apps/${id}`),
+    reorder: (ids: string[]) => put<void>('/web-apps/order', { ids }),
   },
 };
 

@@ -36,6 +36,7 @@ import type { ExecutionProvider, ProcessStatus } from './execution-provider.js';
 const logger = createChildLogger('server-service');
 
 const GARCON_CONFIG_FILE = '.garcon.yaml';
+const SERVER_ORDER_FILE = 'server-order.yaml';
 
 function slugify(name: string): string {
   return name
@@ -65,6 +66,11 @@ interface ServerState {
 
 class ServerService {
   private servers: Map<string, ServerState> = new Map();
+  private orderFilePath: string;
+
+  constructor() {
+    this.orderFilePath = path.join(config.paths.dataDir, SERVER_ORDER_FILE);
+  }
 
   async initialize(): Promise<void> {
     await this.loadServers();
@@ -157,6 +163,16 @@ class ServerService {
       responses.push(this.toResponse(id, state, template?.name));
     }
 
+    const order = await this.loadServerOrder();
+    if (order.length > 0) {
+      const orderMap = new Map(order.map((id, index) => [id, index]));
+      responses.sort((a, b) => {
+        const aIdx = orderMap.get(a.id) ?? Number.MAX_SAFE_INTEGER;
+        const bIdx = orderMap.get(b.id) ?? Number.MAX_SAFE_INTEGER;
+        return aIdx - bIdx;
+      });
+    }
+
     return responses;
   }
 
@@ -241,6 +257,10 @@ class ServerService {
 
     this.servers.set(serverId, state);
 
+    const currentOrder = await this.loadServerOrder();
+    currentOrder.push(serverId);
+    await this.saveServerOrder(currentOrder);
+
     websocketService.broadcastServerUpdate(serverId, 'created');
 
     logger.info({ serverId, name: request.name }, 'Server imported');
@@ -265,6 +285,9 @@ class ServerService {
     await deleteDirectory(serverPath);
 
     this.servers.delete(id);
+
+    const currentOrder = await this.loadServerOrder();
+    await this.saveServerOrder(currentOrder.filter(oid => oid !== id));
 
     websocketService.broadcastServerUpdate(id, 'deleted');
 
@@ -508,8 +531,33 @@ class ServerService {
     return this.toResponse(id, state, template?.name);
   }
 
+  async reorderServers(orderedIds: string[]): Promise<void> {
+    const currentIds = new Set(this.servers.keys());
+    const requestedIds = new Set(orderedIds);
+
+    if (currentIds.size !== requestedIds.size ||
+        ![...currentIds].every(id => requestedIds.has(id))) {
+      throw new ValidationError('Ordered IDs must match the current set of servers');
+    }
+
+    await this.saveServerOrder(orderedIds);
+    logger.info('Server order updated');
+  }
+
   getServerState(id: string): ServerState | undefined {
     return this.servers.get(id);
+  }
+
+  private async loadServerOrder(): Promise<string[]> {
+    if (await pathExists(this.orderFilePath)) {
+      const order = await readYaml<string[]>(this.orderFilePath);
+      return order ?? [];
+    }
+    return [];
+  }
+
+  private async saveServerOrder(order: string[]): Promise<void> {
+    await writeYaml(this.orderFilePath, order);
   }
 
   private updateStatus(id: string, status: ServerStatus): void {

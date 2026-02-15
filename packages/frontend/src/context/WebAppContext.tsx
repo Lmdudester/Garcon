@@ -11,6 +11,7 @@ interface WebAppContextValue {
   createWebApp: (data: CreateWebAppRequest) => Promise<WebAppResponse>;
   editWebApp: (id: string, data: UpdateWebAppRequest) => Promise<WebAppResponse>;
   deleteWebApp: (id: string) => Promise<void>;
+  reorderWebApps: (orderedIds: string[]) => Promise<void>;
 }
 
 const WebAppContext = React.createContext<WebAppContextValue | undefined>(undefined);
@@ -80,6 +81,20 @@ export function WebAppProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
+  const reorderWebApps = React.useCallback(async (orderedIds: string[]) => {
+    const previousOrder = [...webApps];
+    const lookup = new Map(webApps.map(a => [a.id, a]));
+    setWebApps(orderedIds.map(id => lookup.get(id)!).filter(Boolean));
+
+    try {
+      await api.webApps.reorder(orderedIds);
+    } catch (err) {
+      setWebApps(previousOrder);
+      const message = err instanceof ApiError ? err.message : 'Failed to reorder web apps';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  }, [webApps, toast]);
+
   return (
     <WebAppContext.Provider
       value={{
@@ -90,6 +105,7 @@ export function WebAppProvider({ children }: { children: React.ReactNode }) {
         createWebApp,
         editWebApp,
         deleteWebApp,
+        reorderWebApps,
       }}
     >
       {children}

@@ -3,9 +3,10 @@ import { useViewMode } from '@/context/ViewModeContext';
 import { ServerCard } from './ServerCard';
 import { ImportServerDialog } from './ImportServerDialog';
 import { Server } from 'lucide-react';
+import { SortableGrid, type DragHandleProps } from '@/components/ui/sortable-grid';
 
 export function ServerList() {
-  const { servers } = useServers();
+  const { servers, reorderServers } = useServers();
   const { isAdmin } = useViewMode();
 
   if (servers.length === 0) {
@@ -28,11 +29,18 @@ export function ServerList() {
         <div className="h-px flex-1 bg-border" />
         {isAdmin && <div className="shrink-0"><ImportServerDialog /></div>}
       </div>
-      <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-        {servers.map((server) => (
-          <ServerCard key={server.id} server={server} />
-        ))}
-      </div>
+      <SortableGrid
+        items={servers}
+        onReorder={reorderServers}
+        enabled={isAdmin}
+        className="grid gap-4 md:grid-cols-2 lg:grid-cols-3"
+        renderItem={(server: typeof servers[number], dragHandleProps: DragHandleProps) => (
+          <ServerCard key={server.id} server={server} dragHandleProps={dragHandleProps} />
+        )}
+        renderOverlay={(server: typeof servers[number]) => (
+          <ServerCard server={server} dragHandleProps={{ attributes: {}, listeners: undefined, isDragging: true }} />
+        )}
+      />
     </div>
   );
 }

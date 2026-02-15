@@ -12,9 +12,12 @@ import {
 import { useViewMode } from '@/context/ViewModeContext';
 import { EditWebAppDialog } from './EditWebAppDialog';
 import { DeleteWebAppDialog } from './DeleteWebAppDialog';
+import { DragHandle } from '@/components/ui/drag-handle';
+import type { DragHandleProps } from '@/components/ui/sortable-grid';
 
 interface WebAppCardProps {
   webApp: WebAppResponse;
+  dragHandleProps?: DragHandleProps;
 }
 
 function getHostname(url: string): string {
@@ -41,7 +44,7 @@ function StatusIndicator({ status }: { status: 'running' | 'stopped' | 'unknown'
   );
 }
 
-export function WebAppCard({ webApp }: WebAppCardProps) {
+export function WebAppCard({ webApp, dragHandleProps }: WebAppCardProps) {
   const { isAdmin } = useViewMode();
   const [editOpen, setEditOpen] = useState(false);
   const [deleteOpen, setDeleteOpen] = useState(false);
@@ -57,6 +60,7 @@ export function WebAppCard({ webApp }: WebAppCardProps) {
       <Card>
         <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
           <div className="flex items-center gap-2 min-w-0 flex-1">
+            {dragHandleProps && <DragHandle dragHandleProps={dragHandleProps} />}
             {webApp.metadata.faviconUrl && !faviconError ? (
               <img
                 src={webApp.metadata.faviconUrl}

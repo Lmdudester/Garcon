@@ -8,7 +8,7 @@ import type { WebAppLink, WebAppResponse, CreateWebAppRequest, UpdateWebAppReque
 import { readYaml, writeYaml, pathExists } from './file-manager.service.js';
 import { config } from '../config/index.js';
 import { createChildLogger } from '../utils/logger.js';
-import { NotFoundError, ConflictError } from '../utils/errors.js';
+import { NotFoundError, ConflictError, ValidationError } from '../utils/errors.js';
 
 const logger = createChildLogger('web-app');
 
@@ -146,6 +146,21 @@ class WebAppService {
     this.webApps.splice(index, 1);
     await this.save();
     logger.info({ id }, 'Web app deleted');
+  }
+
+  async reorderWebApps(orderedIds: string[]): Promise<void> {
+    const currentIds = new Set(this.webApps.map(a => a.id));
+    const requestedIds = new Set(orderedIds);
+
+    if (currentIds.size !== requestedIds.size ||
+        ![...currentIds].every(id => requestedIds.has(id))) {
+      throw new ValidationError('Ordered IDs must match the current set of web apps');
+    }
+
+    const lookup = new Map(this.webApps.map(a => [a.id, a]));
+    this.webApps = orderedIds.map(id => lookup.get(id)!);
+    await this.save();
+    logger.info('Web apps reordered');
   }
 
   async listAvailableContainers(): Promise<AvailableContainer[]> {

@@ -84,6 +84,12 @@ export {
   type RuntimeConfigResponse
 } from './types/config.js';
 
+// Order types
+export {
+  ReorderRequestSchema,
+  type ReorderRequest
+} from './types/order.js';
+
 // Web App types
 export {
   ContainerStatusSchema,

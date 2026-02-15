@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { CreateWebAppRequestSchema, UpdateWebAppRequestSchema } from '@garcon/shared';
+import { CreateWebAppRequestSchema, UpdateWebAppRequestSchema, ReorderRequestSchema } from '@garcon/shared';
 import { webAppService } from '../services/web-app.service.js';
 
 export async function webAppRoutes(app: FastifyInstance) {
@@ -24,6 +24,12 @@ export async function webAppRoutes(app: FastifyInstance) {
 
   app.delete<{ Params: { id: string } }>('/web-apps/:id', async (request, reply) => {
     await webAppService.deleteWebApp(request.params.id);
+    return reply.status(204).send();
+  });
+
+  app.put('/web-apps/order', async (request, reply) => {
+    const body = ReorderRequestSchema.parse(request.body);
+    await webAppService.reorderWebApps(body.ids);
     return reply.status(204).send();
   });
 }

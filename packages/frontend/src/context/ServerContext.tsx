@@ -21,6 +21,7 @@ interface ServerContextValue {
   initiateUpdate: (id: string) => Promise<{ sourcePath: string; backupTimestamp: string; backupPath: string }>;
   applyUpdate: (id: string) => Promise<void>;
   cancelUpdate: (id: string) => Promise<void>;
+  reorderServers: (orderedIds: string[]) => Promise<void>;
 }
 
 const ServerContext = React.createContext<ServerContextValue | undefined>(undefined);
@@ -238,6 +239,20 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
+  const reorderServers = React.useCallback(async (orderedIds: string[]) => {
+    const previousOrder = [...servers];
+    const lookup = new Map(servers.map(s => [s.id, s]));
+    setServers(orderedIds.map(id => lookup.get(id)!).filter(Boolean));
+
+    try {
+      await api.servers.reorder(orderedIds);
+    } catch (err) {
+      setServers(previousOrder);
+      const message = err instanceof ApiError ? err.message : 'Failed to reorder servers';
+      toast({ title: 'Error', description: message, variant: 'destructive' });
+    }
+  }, [servers, toast]);
+
   return (
     <ServerContext.Provider
       value={{
@@ -256,7 +271,8 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
         acknowledgeCrash,
         initiateUpdate,
         applyUpdate,
-        cancelUpdate
+        cancelUpdate,
+        reorderServers
       }}
     >
       {children}

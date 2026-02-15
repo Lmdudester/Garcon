@@ -1,5 +1,5 @@
 import type { FastifyInstance } from 'fastify';
-import { CreateServerRequestSchema, UpdateServerRequestSchema } from '@garcon/shared';
+import { CreateServerRequestSchema, UpdateServerRequestSchema, ReorderRequestSchema } from '@garcon/shared';
 import { serverService } from '../services/server.service.js';
 
 export async function serverRoutes(app: FastifyInstance) {
@@ -53,5 +53,11 @@ export async function serverRoutes(app: FastifyInstance) {
 
   app.post<{ Params: { id: string } }>('/servers/:id/acknowledge-crash', async (request) => {
     return serverService.acknowledgeCrash(request.params.id);
+  });
+
+  app.put('/servers/order', async (request, reply) => {
+    const body = ReorderRequestSchema.parse(request.body);
+    await serverService.reorderServers(body.ids);
+    return reply.status(204).send();
   });
 }
