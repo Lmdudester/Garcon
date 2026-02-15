@@ -20,9 +20,11 @@ interface WebAppCardProps {
   dragHandleProps?: DragHandleProps;
 }
 
-function getHostname(url: string): string {
+function getDisplayUrl(url: string): string {
   try {
-    return new URL(url).hostname;
+    const parsed = new URL(url);
+    const path = parsed.pathname === '/' ? '' : parsed.pathname;
+    return parsed.host + path;
   } catch {
     return url;
   }
@@ -50,8 +52,8 @@ export function WebAppCard({ webApp, dragHandleProps }: WebAppCardProps) {
   const [deleteOpen, setDeleteOpen] = useState(false);
   const [faviconError, setFaviconError] = useState(false);
 
-  const hostname = getHostname(webApp.url);
-  const title = webApp.name || webApp.metadata.title || hostname;
+  const displayUrl = getDisplayUrl(webApp.url);
+  const title = webApp.name || webApp.metadata.title || displayUrl;
   const showSubtitle = webApp.name && webApp.metadata.title && webApp.name !== webApp.metadata.title;
   const description = webApp.description || webApp.metadata.description;
 
@@ -118,7 +120,7 @@ export function WebAppCard({ webApp, dragHandleProps }: WebAppCardProps) {
               rel="noopener noreferrer"
               className="inline-flex items-center gap-1 text-blue-500 hover:text-blue-700 hover:underline"
             >
-              {getHostname(webApp.url)}
+              {displayUrl}
               <ExternalLink className="h-3 w-3" />
             </a>
           </div>
