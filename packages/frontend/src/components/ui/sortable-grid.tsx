@@ -9,8 +9,10 @@ import {
   useSensors,
   type DragEndEvent,
   type DragStartEvent,
+  type DraggableAttributes,
   DragOverlay,
 } from '@dnd-kit/core';
+import type { SyntheticListenerMap } from '@dnd-kit/core/dist/hooks/utilities';
 import {
   SortableContext,
   rectSortingStrategy,
@@ -20,8 +22,8 @@ import {
 import { CSS } from '@dnd-kit/utilities';
 
 export interface DragHandleProps {
-  attributes: Record<string, unknown>;
-  listeners: Record<string, unknown> | undefined;
+  attributes: Partial<DraggableAttributes>;
+  listeners: SyntheticListenerMap | undefined;
   isDragging: boolean;
 }
 
