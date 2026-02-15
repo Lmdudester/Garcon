@@ -6,7 +6,7 @@ services:
       context: .
       dockerfile: Dockerfile
     ports:
-      - "3001:3001"
+      - "4001:3001"
     volumes:
       - "${GARCON_DATA_DIR:-./garcon-data}:/garcon-data"
       - "${GARCON_HOST_IMPORT_PATH:-./garcon-import}:/garcon-import:ro"

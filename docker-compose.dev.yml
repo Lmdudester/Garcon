@@ -7,7 +7,7 @@ services:
       dockerfile: Dockerfile.dev
       target: backend
     ports:
-      - "3001:3001"
+      - "4001:3001"
     volumes:
       - ./packages/backend/src:/app/packages/backend/src
       - ./packages/shared/src:/app/packages/shared/src
@@ -27,7 +27,7 @@ services:
       dockerfile: Dockerfile.dev
       target: frontend
     ports:
-      - "3000:3000"
+      - "4002:3000"
     volumes:
       - ./packages/frontend/src:/app/packages/frontend/src
       - ./packages/shared/src:/app/packages/shared/src
