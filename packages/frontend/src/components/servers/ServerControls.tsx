@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState, type FocusEvent } from 'react';
 import type { ServerResponse } from '@garcon/shared';
 import { Button } from '@/components/ui/button';
 import {
@@ -20,6 +20,14 @@ interface ServerControlsProps {
   server: ServerResponse;
 }
 
+const STOP_CONFIRMATION_SECONDS = 5;
+const STOP_CONFIRMATION_DURATION_MS = STOP_CONFIRMATION_SECONDS * 1000;
+
+interface StopConfirmation {
+  serverId: string;
+  expiresAt: number;
+}
+
 export function ServerControls({ server }: ServerControlsProps) {
   const { startServer, stopServer, restartServer, acknowledgeCrash, templates } = useServers();
   const { isAdmin } = useViewMode();
@@ -30,12 +38,157 @@ export function ServerControls({ server }: ServerControlsProps) {
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [backupDialogOpen, setBackupDialogOpen] = useState(false);
   const [updateDialogOpen, setUpdateDialogOpen] = useState(false);
+  const [stopConfirmation, setStopConfirmation] = useState<StopConfirmation | null>(null);
+  const [stopConfirmationSeconds, setStopConfirmationSeconds] = useState(0);
+  const [stopConfirmationAnnouncement, setStopConfirmationAnnouncement] = useState('');
+  const [stopConfirmationAnnouncementKey, setStopConfirmationAnnouncementKey] = useState(0);
 
   const isRunning = server.status === 'running';
   const isStopped = server.status === 'stopped';
   const isCrashed = server.status === 'error';
   const isTransitioning = ['starting', 'stopping', 'updating'].includes(server.status);
   const isUpdating = server.updateStage !== 'none';
+
+  const controlsRef = useRef<HTMLDivElement>(null);
+  const stopButtonRef = useRef<HTMLButtonElement>(null);
+  const confirmationOwnsFocusRef = useRef(false);
+  const statusChangeFocusRef = useRef(false);
+  const isRunningRef = useRef(isRunning);
+  const blurCheckFrameRef = useRef<number | null>(null);
+  const focusRestorationFrameRef = useRef<number | null>(null);
+  const announcementFrameRef = useRef<number | null>(null);
+
+  const clearStopConfirmationAnnouncement = useCallback(() => {
+    if (announcementFrameRef.current !== null) {
+      window.cancelAnimationFrame(announcementFrameRef.current);
+      announcementFrameRef.current = null;
+    }
+    setStopConfirmationAnnouncement('');
+  }, []);
+
+  const announceStopConfirmation = useCallback((message: string) => {
+    if (announcementFrameRef.current !== null) {
+      window.cancelAnimationFrame(announcementFrameRef.current);
+    }
+
+    setStopConfirmationAnnouncement('');
+    setStopConfirmationAnnouncementKey(key => key + 1);
+    announcementFrameRef.current = window.requestAnimationFrame(() => {
+      setStopConfirmationAnnouncement(message);
+      announcementFrameRef.current = null;
+    });
+  }, []);
+
+  const expireStopConfirmation = useCallback((confirmation: StopConfirmation) => {
+    setStopConfirmation(current => {
+      if (
+        current?.serverId !== confirmation.serverId ||
+        current.expiresAt !== confirmation.expiresAt
+      ) {
+        return current;
+      }
+      return null;
+    });
+    setStopConfirmationSeconds(0);
+    confirmationOwnsFocusRef.current = false;
+    announceStopConfirmation('Server stop confirmation expired.');
+  }, [announceStopConfirmation]);
+
+  useLayoutEffect(() => {
+    isRunningRef.current = isRunning;
+  }, [isRunning]);
+
+  useLayoutEffect(() => {
+    if (isRunning || stopConfirmation?.serverId !== server.id) {
+      statusChangeFocusRef.current = false;
+    }
+
+    return () => {
+      if (
+        isRunning &&
+        stopConfirmation?.serverId === server.id &&
+        document.activeElement === stopButtonRef.current
+      ) {
+        statusChangeFocusRef.current = true;
+      }
+    };
+  }, [isRunning, server.id, stopConfirmation]);
+
+  useEffect(() => {
+    if (!stopConfirmation || stopConfirmation.serverId !== server.id) {
+      return;
+    }
+
+    const updateCountdown = () => {
+      const remainingMilliseconds = stopConfirmation.expiresAt - Date.now();
+      if (remainingMilliseconds <= 0) {
+        expireStopConfirmation(stopConfirmation);
+        return;
+      }
+
+      setStopConfirmationSeconds(Math.ceil(remainingMilliseconds / 1000));
+    };
+
+    updateCountdown();
+    const interval = window.setInterval(updateCountdown, 1000);
+    return () => window.clearInterval(interval);
+  }, [expireStopConfirmation, server.id, stopConfirmation]);
+
+  useEffect(() => {
+    if (!stopConfirmation || stopConfirmation.serverId === server.id) {
+      return;
+    }
+
+    setStopConfirmation(null);
+    setStopConfirmationSeconds(0);
+    confirmationOwnsFocusRef.current = false;
+    statusChangeFocusRef.current = false;
+    clearStopConfirmationAnnouncement();
+  }, [clearStopConfirmationAnnouncement, server.id, stopConfirmation]);
+
+  useEffect(() => {
+    if (isRunning || stopConfirmation?.serverId !== server.id) {
+      return;
+    }
+
+    const shouldRestoreFocus = statusChangeFocusRef.current;
+    statusChangeFocusRef.current = false;
+    setStopConfirmation(null);
+    setStopConfirmationSeconds(0);
+    confirmationOwnsFocusRef.current = false;
+    announceStopConfirmation('Server stop confirmation cancelled because the server status changed.');
+
+    if (shouldRestoreFocus) {
+      if (focusRestorationFrameRef.current !== null) {
+        window.cancelAnimationFrame(focusRestorationFrameRef.current);
+      }
+      focusRestorationFrameRef.current = window.requestAnimationFrame(() => {
+        const controls = controlsRef.current;
+        if (!controls) {
+          focusRestorationFrameRef.current = null;
+          return;
+        }
+
+        const nextButton = controls.querySelector<HTMLButtonElement>('button:not(:disabled)');
+        (nextButton ?? controls).focus();
+        focusRestorationFrameRef.current = null;
+      });
+    }
+  }, [announceStopConfirmation, isRunning, server.id, stopConfirmation]);
+
+  useEffect(() => {
+    return () => {
+      if (blurCheckFrameRef.current !== null) {
+        window.cancelAnimationFrame(blurCheckFrameRef.current);
+      }
+      if (focusRestorationFrameRef.current !== null) {
+        window.cancelAnimationFrame(focusRestorationFrameRef.current);
+      }
+      if (announcementFrameRef.current !== null) {
+        window.cancelAnimationFrame(announcementFrameRef.current);
+      }
+    };
+  }, []);
 
   const handleStart = async () => {
     setIsLoading(true);
@@ -46,13 +199,54 @@ export function ServerControls({ server }: ServerControlsProps) {
     }
   };
 
-  const handleStop = async () => {
+  const handleStopRequest = () => {
+    statusChangeFocusRef.current = false;
+    setStopConfirmation({
+      serverId: server.id,
+      expiresAt: Date.now() + STOP_CONFIRMATION_DURATION_MS,
+    });
+    setStopConfirmationSeconds(STOP_CONFIRMATION_SECONDS);
+    confirmationOwnsFocusRef.current = document.activeElement === stopButtonRef.current;
+    announceStopConfirmation('Server stop confirmation active. Confirm within five seconds.');
+  };
+
+  const handleConfirmedStop = async () => {
+    const confirmation = stopConfirmation;
+    if (!confirmation || confirmation.serverId !== server.id) {
+      return;
+    }
+
+    if (Date.now() >= confirmation.expiresAt) {
+      expireStopConfirmation(confirmation);
+      return;
+    }
+
+    setStopConfirmation(null);
+    setStopConfirmationSeconds(0);
+    confirmationOwnsFocusRef.current = false;
+    clearStopConfirmationAnnouncement();
     setIsLoading(true);
     try {
-      await stopServer(server.id);
+      await stopServer(confirmation.serverId);
     } finally {
       setIsLoading(false);
     }
+  };
+
+  const handleConfirmationFocus = () => {
+    confirmationOwnsFocusRef.current = true;
+  };
+
+  const handleConfirmationBlur = (_event: FocusEvent<HTMLButtonElement>) => {
+    if (blurCheckFrameRef.current !== null) {
+      window.cancelAnimationFrame(blurCheckFrameRef.current);
+    }
+    blurCheckFrameRef.current = window.requestAnimationFrame(() => {
+      blurCheckFrameRef.current = null;
+      if (isRunningRef.current && document.activeElement !== stopButtonRef.current) {
+        confirmationOwnsFocusRef.current = false;
+      }
+    });
   };
 
   const handleRestart = async () => {
@@ -73,11 +267,29 @@ export function ServerControls({ server }: ServerControlsProps) {
     }
   };
 
+  const isStopConfirmationActive = stopConfirmation?.serverId === server.id;
+
   return (
-    <div className="flex items-center gap-2 flex-wrap">
+    <div
+      ref={controlsRef}
+      role="group"
+      aria-label="Server controls"
+      tabIndex={-1}
+      className="flex items-center gap-2 flex-wrap"
+    >
+      <span
+        key={stopConfirmationAnnouncementKey}
+        className="sr-only"
+        role="status"
+        aria-live="polite"
+        aria-atomic="true"
+      >
+        {stopConfirmationAnnouncement}
+      </span>
       {isStopped && !isUpdating && (
         <Button
           size="sm"
+          className="bg-green-700 text-white hover:bg-green-800"
           onClick={handleStart}
           disabled={isLoading || isTransitioning}
         >
@@ -89,13 +301,18 @@ export function ServerControls({ server }: ServerControlsProps) {
       {isRunning && (
         <>
           <Button
+            ref={stopButtonRef}
             size="sm"
-            variant="secondary"
-            onClick={handleStop}
+            className="bg-red-600 text-white hover:bg-red-700"
+            onClick={isStopConfirmationActive ? handleConfirmedStop : handleStopRequest}
             disabled={isLoading || isTransitioning}
+            onFocus={handleConfirmationFocus}
+            onBlur={handleConfirmationBlur}
           >
             <Square className="h-4 w-4 mr-1" />
-            Stop
+            {isStopConfirmationActive
+              ? `Confirm Server Stop (${stopConfirmationSeconds})`
+              : 'Stop'}
           </Button>
           {!isNative && (
             <Button
