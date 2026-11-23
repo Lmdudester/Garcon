@@ -148,7 +148,6 @@ class DockerManagerService {
   async reconcileContainers(): Promise<void>   // Sync state on startup
 
   // Helpers
-  substituteVariables(command, environment): string
   parseMemoryLimit(memory): number
 }
 ```
@@ -496,11 +495,21 @@ Containers are tagged with labels for identification:
 ### Creating a Container
 
 ```typescript
+const envVars = Object.entries(template.docker.environment ?? {})
+  .map(([key, value]) => `${key}=${value}`);
+
 const container = await docker.createContainer({
   name: `garcon-${server.config.id}`,
   Image: template.docker.baseImage,
-  Cmd: ['sh', '-c', command],  // Run through shell for variable expansion
-  WorkingDir: template.docker.workDir || template.docker.mountPath,
+  // Only set Cmd when execution.command is configured. Otherwise the
+  // image's own Entrypoint/CMD/WORKDIR remain in effect.
+  Cmd: template.execution.command
+    ? ['sh', '-c', template.execution.command]
+    : undefined,
+  WorkingDir: template.execution.command
+    ? template.docker.mountPath
+    : undefined,
+  Env: envVars,
   HostConfig: {
     Binds: [`${serverPath}:${template.docker.mountPath}`],
     PortBindings: portBindings,
@@ -532,6 +541,18 @@ docker.getEvents({
 });
 ```
 
+### Template/runtime contract
+
+The template guide at [docs/TEMPLATES.md](TEMPLATES.md) is the author-facing source of truth. The implementation details that are important when changing providers are:
+
+- `docker.environment` is fixed template configuration. The runtime does not collect or merge per-server environment parameters, and it does not perform Garcon-specific brace-variable substitution.
+- When `execution.command` is present, the Docker provider sets Cmd to `['sh', '-c', configuredText]`, leaves the image Entrypoint in place, and uses `docker.mountPath` as the working directory. When it is absent, the image's own Cmd and WORKDIR remain in effect. `docker.workDir` and `docker.additionalMounts` are schema fields but are not applied by the current provider.
+- Native execution uses direct process spawning: `execution.executable` and `execution.args` are resolved from the imported server directory. The native provider ignores the entire Docker block and does not create Docker port bindings.
+- `requiredFiles` is checked as paths relative to the selected import folder before the folder is copied. `sourcePath` is a folder name under the configured import directory, not an arbitrary absolute path.
+- `defaultPorts` seeds Docker mappings, but the UI initially uses container numbers as host numbers while the direct API fallback for omitted ports uses its existing container-plus-index behavior. Port descriptions are template metadata and are not preserved in the server-config shape.
+
+Native stop behavior is deliberately separate from Docker stop behavior. Garcon attempts RCON only when `execution.rcon.enabled` is true. The fallback port is `25575`, the fallback password is empty, and the fallback command is `shutdown`; the connection goes to `localhost`. When `save-data/Settings/ServerHostSettings.json` exists and `Rcon.Enabled` is true, its `Port` and `Password` override those fallbacks. Garcon waits up to `execution.stopTimeout` for graceful exit, then force-kills after a failed or timed-out attempt. Without enabled RCON it force-kills and uses the provider's fixed post-kill wait. `execution.stopCommand` is accepted by the schema but ignored by both providers.
+
 ---
 
 ## Data Flow Examples
@@ -543,7 +564,7 @@ User clicks "Add Server" in UI
         ↓
 ImportServerDialog collects:
   - name, sourcePath, templateId
-  - ports, environment variables
+  - ports and server resource settings
         ↓
 POST /api/servers with CreateServerRequest
         ↓
@@ -583,7 +604,7 @@ Backend ServerService.startServer():
         ↓
 DockerManagerService:
   1. Ensure image exists (pull if needed)
-  2. Build command with variable substitution
+  2. Pass fixed template environment and optional Cmd override
   3. Create container with config
   4. Start container
   5. Return container ID
@@ -798,8 +819,13 @@ class TemplateService {
 
 ### Debugging Tips
 
-- Backend logs go to `garcon-data/logs/` and console
+- Backend and template-loader messages go to the Garcon process console or Garcon container logs; they are not guaranteed to be in `garcon-data/logs/`
 - Set `LOG_LEVEL=debug` for verbose output
-- Use `docker logs garcon-<server-id>` for game server output
+- Find Docker game output by label so stopped containers and custom prefixes work:
+  ```powershell
+  docker ps -a --filter "label=garcon.serverId=<server-id>" --format "{{.Names}}"
+  docker logs <container-name>
+  ```
+- Native stdout/stderr is written to `GARCON_DATA_DIR/logs/<server-id>.log`
 - Browser DevTools Network tab for API debugging
 - React DevTools for component state inspection
