@@ -126,54 +126,55 @@ For a containerized deployment that automatically pulls updates from GitHub on e
 
 ## Creating Templates
 
-Templates define how to run a specific game server type. They specify the Docker image, execution command, default ports, and required files.
+Templates define how to run a specific game server type. They specify the execution mode, Docker image or native executable, environment settings, default ports, required files, and shutdown behavior.
 
 **For the complete template guide, see [docs/TEMPLATES.md](docs/TEMPLATES.md).**
 
 ### Quick Overview
 
-Templates are YAML files stored in `garcon-data/templates/`. Garcon includes three built-in templates:
+Templates are YAML files stored in `garcon-data/templates/`. Garcon includes four built-in templates:
 - **Minecraft Java Edition** (`minecraft.yaml`)
 - **Valheim Dedicated Server** (`valheim.yaml`)
 - **V Rising Dedicated Server** (`vrising.yaml`)
+- **V Rising (Native Windows)** (`vrising-native.yaml`)
 
 ### Example Template
 
 ```yaml
-id: minecraft
-name: Minecraft Java Edition
-description: Minecraft Java Edition server using Eclipse Temurin 21
+id: minecraft-itzg-paper
+name: Minecraft Paper (itzg)
+description: Fixed Paper configuration based on the itzg community image
+executionMode: docker
 docker:
-  baseImage: eclipse-temurin:21-jre
-  mountPath: /server
-execution:
-  executable: server.jar
-  command: java -Xmx{MEMORY} -Xms{MEMORY} -jar server.jar nogui
-  stopTimeout: 30
+  baseImage: itzg/minecraft-server:java21
+  mountPath: /data
+  environment:
+    EULA: "TRUE"
+    TYPE: "PAPER"
+    VERSION: "1.21.4"
+execution: {}
 defaultPorts:
   - container: 25565
     protocol: tcp
-    description: Minecraft server port
-variables:
-  - name: MEMORY
-    description: Server memory allocation
-    defaultValue: 2G
-    required: false
-requiredFiles:
-  - server.jar
+requiredFiles: []
 ```
+
+Values in `docker.environment` are fixed literal values shared by every server imported from this template. Use a separate template for a different fixed configuration; templates do not provide per-server environment inputs. Add or change a template under `garcon-data/templates/`, then restart the backend.
 
 ### Key Concepts
 
 | Field | Purpose |
 |-------|---------|
+| `executionMode` | `docker` (default) for a container or `native` for a Windows process |
 | `docker.baseImage` | Docker image to run the server in |
 | `docker.mountPath` | Path inside container where your server files appear |
-| `execution.command` | Command to start the server (supports `{VARIABLE}` substitution) |
-| `variables` | User-configurable values that get substituted into the command |
+| `docker.environment` | Fixed environment values supplied by the template author |
+| `execution.command` | Optional Docker Cmd override; omit it to keep the image's own Entrypoint/CMD |
+| `execution.requiresNonRoot` | Docker-only fixed `1000:1000` mode |
+| `execution.args` / `execution.rcon` | Native process arguments and optional graceful shutdown |
 | `requiredFiles` | Files that must exist for a valid server import |
 
-For detailed documentation including the complete schema, many game-specific examples, and troubleshooting, see the **[Template Guide](docs/TEMPLATES.md)**.
+For the complete schema, fixed-environment model, community-image recipe, native execution details, and troubleshooting, see the **[Template Guide](docs/TEMPLATES.md)**.
 
 ---
 
@@ -188,15 +189,13 @@ id: string              # Unique server ID (auto-generated)
 name: string            # Server display name (you provide)
 description: string     # Optional server description (max 250 chars)
 templateId: string      # Reference to template ID
-sourcePath: string      # Original source folder path
+sourcePath: string      # Folder name under Garcon's import directory
 createdAt: datetime     # When server was imported
 updatedAt: datetime     # When config was last modified
 ports:                  # Port mappings
   - host: number        # Port on host machine
     container: number   # Port inside container
     protocol: tcp|udp   # Protocol type
-environment:            # Variable values (used in command substitution)
-  VARIABLE_NAME: value
 memory: string          # Optional memory limit (e.g., "2G")
 cpuLimit: number        # Optional CPU limit
 updateStage: string     # Current update workflow stage
@@ -208,16 +207,14 @@ updateStage: string     # Current update workflow stage
 # garcon-data/servers/my-minecraft-abc123/.garcon.yaml
 id: my-minecraft-abc123
 name: My Minecraft Server
-templateId: minecraft
-sourcePath: C:\Users\me\Downloads\minecraft-server
+templateId: minecraft-itzg-paper
+sourcePath: minecraft-server
 createdAt: 2026-02-01T10:00:00.000Z
 updatedAt: 2026-02-01T10:00:00.000Z
 ports:
   - host: 25565
     container: 25565
     protocol: tcp
-environment:
-  MEMORY: 4G
 updateStage: none
 ```
 
@@ -275,14 +272,11 @@ updateStage: none
 {
   "name": "My Server",
   "description": "Optional description for this server",
-  "sourcePath": "/path/to/server/folder",
-  "templateId": "minecraft",
+  "sourcePath": "minecraft-server",
+  "templateId": "minecraft-itzg-paper",
   "ports": [
     { "host": 25565, "container": 25565, "protocol": "tcp" }
   ],
-  "environment": {
-    "MEMORY": "4G"
-  },
   "memory": "4G",
   "cpuLimit": 2
 }
@@ -443,7 +437,7 @@ garcon/
 1. Check that Docker Desktop is running
 2. Verify the template's base image exists: `docker pull <baseImage>`
 3. Check the server folder contains all required files
-4. Review Garcon logs in `garcon-data/logs/`
+4. Review backend output in the Garcon process console or container logs; native game output is written to `GARCON_DATA_DIR/logs/<server-id>.log`
 
 ### Server Shows "Error" Status
 
@@ -462,10 +456,13 @@ When a server crashes, Garcon preserves the container for debugging:
 
 ### Template Not Loading
 
-- Ensure the file has `.yaml` extension
+- Ensure the file is a direct `.yaml` file under `GARCON_DATA_DIR/templates/` (normally `garcon-data/templates/`); nested files are ignored
 - Validate YAML syntax (no tabs, proper indentation)
 - Check that `id` field is unique across all templates
+- Inspect the backend process console or Garcon container logs for schema errors
 - Restart the backend to reload templates
+
+For the complete supported field matrix, Docker/Compose translation recipe, community-image examples, fixed-environment rules, and troubleshooting commands, see [docs/TEMPLATES.md](docs/TEMPLATES.md).
 
 ### Game Server Crashes Immediately (Docker Auto-Update)
 
