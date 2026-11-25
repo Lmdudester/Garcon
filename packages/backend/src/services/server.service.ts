@@ -7,6 +7,7 @@ import type {
   CreateServerRequest,
   UpdateServerRequest,
   ServerStatus,
+  Template,
   UpdateStage
 } from '@garcon/shared';
 import { config } from '../config/index.js';
@@ -64,8 +65,9 @@ interface ServerState {
   updateBackupTimestamp?: string;
 }
 
-class ServerService {
+export class ServerService {
   private servers: Map<string, ServerState> = new Map();
+  private pendingImports = new Map<string, number>();
   private orderFilePath: string;
 
   constructor() {
@@ -102,9 +104,24 @@ class ServerService {
     }
   }
 
-  private getProvider(templateId: string): ExecutionProvider {
+  getReferencedTemplateIds(): ReadonlySet<string> {
+    const ids = new Set(this.pendingImports.keys());
+    for (const { config: { templateId } } of this.servers.values()) {
+      ids.add(templateId);
+    }
+    return ids;
+  }
+
+  private getProvider(template: Template): ExecutionProvider {
+    return template.executionMode === 'native' ? nativeProvider : dockerProvider;
+  }
+
+  private requireServerTemplate(templateId: string): Template {
     const template = templateService.getTemplateSync(templateId);
-    return template?.executionMode === 'native' ? nativeProvider : dockerProvider;
+    if (!template) {
+      throw new ServerStateError(`Template '${templateId}' is missing. Restore its original file and restart Garcon to recover this server.`);
+    }
+    return template;
   }
 
   private async loadServers(): Promise<void> {
@@ -117,13 +134,18 @@ class ServerService {
 
         if (await pathExists(configPath)) {
           const serverConfig = await readYaml<ServerConfig>(configPath);
-          const provider = this.getProvider(serverConfig.templateId);
+          const { templateId } = serverConfig;
+          const template = templateService.getTemplateSync(templateId);
 
           let processStatus: ProcessStatus = { exists: false, running: false };
-          try {
-            processStatus = await provider.getProcessStatus(serverId);
-          } catch (error) {
-            logger.warn({ error, serverId }, 'Could not check process status, assuming stopped');
+          if (template) {
+            try {
+              processStatus = await this.getProvider(template).getProcessStatus(serverId);
+            } catch (error) {
+              logger.warn({ error, serverId }, 'Could not check process status, assuming stopped');
+            }
+          } else {
+            logger.warn({ serverId, templateId }, 'Skipping process status lookup because the template is missing');
           }
 
           let status: ServerStatus = 'stopped';
@@ -198,16 +220,36 @@ class ServerService {
     // Construct full path within the import directory
     const sourcePath = path.join(config.paths.importDir, folderName);
 
-    if (!(await pathExists(sourcePath))) {
-      throw new ValidationError(`Folder '${folderName}' not found in import directory`);
+    const { templateId } = request;
+    const template = templateService.getTemplateSync(templateId);
+    if (!template) {
+      throw new NotFoundError('Template', templateId);
     }
 
-    if (!(await isDirectory(sourcePath))) {
-      throw new ValidationError(`'${folderName}' is not a directory`);
+    this.pendingImports.set(templateId, (this.pendingImports.get(templateId) ?? 0) + 1);
+    try {
+      if (!(await pathExists(sourcePath))) {
+        throw new ValidationError(`Folder '${folderName}' not found in import directory`);
+      }
+      if (!(await isDirectory(sourcePath))) {
+        throw new ValidationError(`'${folderName}' is not a directory`);
+      }
+      return await this.importWithTemplate(request, template, sourcePath);
+    } finally {
+      const count = this.pendingImports.get(templateId) ?? 0;
+      if (count > 1) {
+        this.pendingImports.set(templateId, count - 1);
+      } else {
+        this.pendingImports.delete(templateId);
+      }
     }
+  }
 
-    const template = await templateService.getTemplate(request.templateId);
-
+  private async importWithTemplate(
+    request: CreateServerRequest,
+    template: Template,
+    sourcePath: string
+  ): Promise<ServerResponse> {
     if (template.requiredFiles) {
       for (const requiredFile of template.requiredFiles) {
         const filePath = path.join(sourcePath, requiredFile);
@@ -274,11 +316,12 @@ class ServerService {
       throw new NotFoundError('Server', id);
     }
 
+    const template = this.requireServerTemplate(state.config.templateId);
     if (state.status === 'running') {
       throw new ServerStateError('Cannot delete a running server. Stop it first.');
     }
 
-    const provider = this.getProvider(state.config.templateId);
+    const provider = this.getProvider(template);
     await provider.removeProcess(id);
 
     const serverPath = path.join(config.paths.serversDir, id);
@@ -339,6 +382,7 @@ class ServerService {
       throw new NotFoundError('Server', id);
     }
 
+    const template = this.requireServerTemplate(state.config.templateId);
     if (state.status === 'running') {
       throw new ServerStateError('Server is already running');
     }
@@ -350,8 +394,7 @@ class ServerService {
     this.updateStatus(id, 'starting');
 
     try {
-      const template = await templateService.getTemplate(state.config.templateId);
-      const provider = this.getProvider(state.config.templateId);
+      const provider = this.getProvider(template);
 
       // For native mode, use serversDir directly (no Docker bind mount indirection)
       // For Docker mode, use hostDataDir for bind mounts (supports Docker-in-Docker)
@@ -382,6 +425,7 @@ class ServerService {
       throw new NotFoundError('Server', id);
     }
 
+    const template = this.requireServerTemplate(state.config.templateId);
     if (state.status !== 'running') {
       throw new ServerStateError('Server is not running');
     }
@@ -389,8 +433,7 @@ class ServerService {
     this.updateStatus(id, 'stopping');
 
     try {
-      const template = await templateService.getTemplate(state.config.templateId);
-      const provider = this.getProvider(state.config.templateId);
+      const provider = this.getProvider(template);
 
       if (config.backup.autoBackupOnStop) {
         await backupService.createBackup(id, 'auto');
@@ -512,12 +555,13 @@ class ServerService {
       throw new NotFoundError('Server', id);
     }
 
+    const template = this.requireServerTemplate(state.config.templateId);
     if (state.status !== 'error') {
       throw new ServerStateError('Server is not in crashed state');
     }
 
     // Remove the crashed process/container (cleanup for debugging is complete)
-    const provider = this.getProvider(state.config.templateId);
+    const provider = this.getProvider(template);
     await provider.removeProcess(id);
 
     state.status = 'stopped';
@@ -527,8 +571,7 @@ class ServerService {
 
     logger.info({ serverId: id }, 'Crash acknowledged, process removed');
 
-    const template = templateService.getTemplateSync(state.config.templateId);
-    return this.toResponse(id, state, template?.name);
+    return this.toResponse(id, state, template.name);
   }
 
   async reorderServers(orderedIds: string[]): Promise<void> {

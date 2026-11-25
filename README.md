@@ -159,7 +159,9 @@ defaultPorts:
 requiredFiles: []
 ```
 
-Values in `docker.environment` are fixed literal values shared by every server imported from this template. Use a separate template for a different fixed configuration; templates do not provide per-server environment inputs. Add or change a template under `garcon-data/templates/`, then restart the backend.
+Values in `docker.environment` are fixed literal values shared by every server imported from this template. Use a separate template for a different fixed configuration; templates do not provide per-server environment inputs.
+
+Save the template directly under `garcon-data/templates/` (or `GARCON_DATA_DIR/templates/`). Garcon reloads valid changes automatically. Open or reopen **Add Server** to refresh the template list if the filesystem watcher misses a change.
 
 ### Key Concepts
 
@@ -242,6 +244,7 @@ updateStage: none
 |--------|----------|-------------|
 | `GET` | `/api/templates` | List available templates |
 | `GET` | `/api/templates/:id` | Get template details |
+| `POST` | `/api/templates/reload` | Reload templates from disk and return the loaded count |
 
 ### Backups
 
@@ -460,7 +463,9 @@ When a server crashes, Garcon preserves the container for debugging:
 - Validate YAML syntax (no tabs, proper indentation)
 - Check that `id` field is unique across all templates
 - Inspect the backend process console or Garcon container logs for schema errors
-- Restart the backend to reload templates
+- Fix any invalid files and reopen **Add Server** to retry. A failed reload keeps the previous template list.
+- Keep the ID and execution mode of any template used by an imported server. To switch execution modes, add a separate template under a new ID.
+- If a server's template was already missing when Garcon started, restore its original file and execution mode, then restart Garcon to recover that server.
 
 For the complete supported field matrix, Docker/Compose translation recipe, community-image examples, fixed-environment rules, and troubleshooting commands, see [docs/TEMPLATES.md](docs/TEMPLATES.md).
 

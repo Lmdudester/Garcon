@@ -7,10 +7,11 @@ import { useWebSocket } from './WebSocketContext';
 interface ServerContextValue {
   servers: ServerResponse[];
   templates: TemplateResponse[];
+  templateStatus: 'pending' | 'fresh' | 'stale';
   loading: boolean;
   error: string | null;
   refreshServers: () => Promise<void>;
-  refreshTemplates: () => Promise<void>;
+  refreshTemplates: (reloadFromDisk?: boolean) => Promise<void>;
   importServer: (data: CreateServerRequest) => Promise<ServerResponse>;
   editServer: (id: string, data: UpdateServerRequest) => Promise<ServerResponse>;
   deleteServer: (id: string) => Promise<void>;
@@ -29,6 +30,8 @@ const ServerContext = React.createContext<ServerContextValue | undefined>(undefi
 export function ServerProvider({ children }: { children: React.ReactNode }) {
   const [servers, setServers] = React.useState<ServerResponse[]>([]);
   const [templates, setTemplates] = React.useState<TemplateResponse[]>([]);
+  const [templateStatus, setTemplateStatus] = React.useState<ServerContextValue['templateStatus']>('pending');
+  const templateRequest = React.useRef(0);
   const [loading, setLoading] = React.useState(true);
   const [error, setError] = React.useState<string | null>(null);
 
@@ -47,13 +50,35 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
-  const refreshTemplates = React.useCallback(async () => {
+  const refreshTemplates = React.useCallback(async (reloadFromDisk = false) => {
+    const request = ++templateRequest.current;
+    setTemplateStatus('pending');
+
+    let reloadMessage: string | undefined;
+    if (reloadFromDisk) {
+      try {
+        await api.templates.reload();
+      } catch (err) {
+        reloadMessage = err instanceof ApiError && err.code === 'CONFLICT'
+          ? err.message
+          : 'Check the Garcon backend logs, then reopen Import Server after correcting the files.';
+      }
+    }
+
     try {
       const data = await api.templates.list();
+      if (request !== templateRequest.current) return;
       setTemplates(data);
+      setTemplateStatus('fresh');
     } catch (err) {
+      if (request !== templateRequest.current) return;
+      setTemplateStatus('stale');
       const message = err instanceof ApiError ? err.message : 'Failed to load templates';
-      toast({ title: 'Error', description: message, variant: 'destructive' });
+      toast({ title: 'Could not load templates', description: message, variant: 'destructive' });
+    }
+
+    if (reloadMessage && request === templateRequest.current) {
+      toast({ title: 'Could not reload templates', description: reloadMessage, variant: 'destructive' });
     }
   }, [toast]);
 
@@ -258,6 +283,7 @@ export function ServerProvider({ children }: { children: React.ReactNode }) {
       value={{
         servers,
         templates,
+        templateStatus,
         loading,
         error,
         refreshServers,

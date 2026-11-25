@@ -47,8 +47,11 @@ export function ImportServerDialog() {
   const [folders, setFolders] = useState<string[]>([]);
   const [foldersLoading, setFoldersLoading] = useState(false);
 
-  const { templates, importServer } = useServers();
+  const { templates, templateStatus, refreshTemplates, importServer } = useServers();
   const { toast } = useToast();
+  const selectedTemplateExists = templates.some(template => template.id === templateId);
+  const canSubmit = !isSubmitting && templateStatus === 'fresh' && selectedTemplateExists
+    && !!name && !!sourcePath;
 
   // Fetch import path and folders when dialog opens
   useEffect(() => {
@@ -88,7 +91,7 @@ export function ImportServerDialog() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!name || !sourcePath || !templateId) return;
+    if (!canSubmit) return;
 
     setIsSubmitting(true);
     try {
@@ -154,7 +157,8 @@ export function ImportServerDialog() {
   return (
     <Dialog open={open} onOpenChange={(isOpen) => {
       setOpen(isOpen);
-      if (!isOpen) resetForm();
+      if (isOpen) void refreshTemplates(true);
+      else resetForm();
     }}>
       <DialogTrigger asChild>
         <Button variant="outline" className="border-2 border-cyan-500/70 text-cyan-500/70 font-bold hover:bg-cyan-500/10 hover:text-cyan-400/80">
@@ -268,6 +272,12 @@ export function ImportServerDialog() {
                   ))}
                 </SelectContent>
               </Select>
+              {templateStatus === 'pending' && (
+                <p role="status" className="text-xs text-muted-foreground">Refreshing templates from disk…</p>
+              )}
+              {templateStatus === 'stale' && (
+                <p role="status" className="text-xs text-destructive">Could not confirm the current templates. Close and reopen this dialog to retry.</p>
+              )}
             </div>
 
             <div className="grid gap-2">
@@ -369,7 +379,7 @@ export function ImportServerDialog() {
             >
               Cancel
             </Button>
-            <Button type="submit" disabled={isSubmitting || !name || !sourcePath || !templateId}>
+            <Button type="submit" disabled={!canSubmit}>
               {isSubmitting ? 'Importing...' : 'Import Server'}
             </Button>
           </DialogFooter>

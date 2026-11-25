@@ -1,10 +1,13 @@
+import { watch, type FSWatcher } from 'node:fs';
+import { readFile, readdir } from 'node:fs/promises';
 import path from 'path';
 import type { Template, TemplateResponse } from '@garcon/shared';
 import { TemplateSchema } from '@garcon/shared';
+import { parseDocument } from 'yaml';
 import { config } from '../config/index.js';
 import { createChildLogger } from '../utils/logger.js';
-import { NotFoundError } from '../utils/errors.js';
-import { pathExists, readYaml, writeYaml, listFiles } from './file-manager.service.js';
+import { AppError, ConflictError, FileSystemError, NotFoundError, ValidationError } from '../utils/errors.js';
+import { pathExists, writeYaml } from './file-manager.service.js';
 
 const logger = createChildLogger('template-service');
 
@@ -103,15 +106,26 @@ const DEFAULT_TEMPLATES: Template[] = [
   }
 ];
 
-class TemplateService {
+export class TemplateService {
   private templates: Map<string, Template> = new Map();
-  private initialized = false;
+  private initialization?: Promise<void>;
+  private getProtectedTemplateIds: () => ReadonlySet<string> = () => new Set();
+  private reloadQueue: Promise<unknown> = Promise.resolve();
+  private watcher?: FSWatcher;
+  private watchTimer?: NodeJS.Timeout;
 
-  async initializeDefaultTemplates(): Promise<void> {
-    if (this.initialized) return;
+  constructor(private readonly templatesDir = config.paths.templatesDir) {}
 
+  initializeDefaultTemplates(): Promise<void> {
+    return this.initialization ??= this.initialize().catch(error => {
+      this.initialization = undefined;
+      throw error;
+    });
+  }
+
+  private async initialize(): Promise<void> {
     for (const template of DEFAULT_TEMPLATES) {
-      const templatePath = path.join(config.paths.templatesDir, `${template.id}.yaml`);
+      const templatePath = path.join(this.templatesDir, `${template.id}.yaml`);
 
       if (!(await pathExists(templatePath))) {
         await writeYaml(templatePath, template);
@@ -119,42 +133,170 @@ class TemplateService {
       }
     }
 
-    await this.loadTemplates();
-    this.initialized = true;
-  }
-
-  async loadTemplates(): Promise<void> {
-    this.templates.clear();
-    const files = await listFiles(config.paths.templatesDir, '.yaml');
-
-    for (const file of files) {
-      const templatePath = path.join(config.paths.templatesDir, file);
-      try {
-        const data = await readYaml<unknown>(templatePath);
-        const template = TemplateSchema.parse(data);
-        this.templates.set(template.id, template);
-        logger.debug({ templateId: template.id }, 'Loaded template');
-      } catch (error) {
-        logger.error({ error, file }, 'Failed to load template');
-      }
-    }
-
+    this.templates = await this.scanTemplates(false);
     logger.info({ count: this.templates.size }, 'Templates loaded');
   }
 
-  async listTemplates(): Promise<TemplateResponse[]> {
-    if (!this.initialized) {
-      await this.initializeDefaultTemplates();
+  startRuntimeReloads(getProtectedTemplateIds: () => ReadonlySet<string>): Promise<{ count: number }> {
+    this.getProtectedTemplateIds = getProtectedTemplateIds;
+    this.startWatching();
+    return this.reloadTemplates('startup catch-up');
+  }
+
+  reloadTemplates(trigger = 'API'): Promise<{ count: number }> {
+    const reload = this.reloadQueue.then(async () => {
+      try {
+        await this.initializeDefaultTemplates();
+        const candidate = await this.scanTemplates(true);
+        this.checkProtectedTemplates(candidate);
+        this.templates = candidate;
+        const count = candidate.size;
+        logger.info({ trigger, count }, 'Templates reloaded');
+        return { count };
+      } catch (error) {
+        logger.warn({
+          trigger,
+          directory: this.templatesDir,
+          code: error instanceof AppError ? error.code : 'INTERNAL_ERROR',
+          details: error instanceof AppError ? error.details : undefined
+        }, 'Template reload failed');
+        throw error;
+      }
+    });
+    this.reloadQueue = reload.catch(() => {});
+    return reload;
+  }
+
+  private checkProtectedTemplates(candidate: Map<string, Template>): void {
+    const changedIds: string[] = [];
+    const missingAtStartupIds: string[] = [];
+    for (const id of this.getProtectedTemplateIds()) {
+      const current = this.templates.get(id);
+      const next = candidate.get(id);
+      if (current && current.executionMode !== next?.executionMode) {
+        changedIds.push(id);
+      } else if (!current && next) {
+        missingAtStartupIds.push(id);
+      }
+    }
+    if (changedIds.length === 0 && missingAtStartupIds.length === 0) return;
+
+    const instructions = [];
+    if (changedIds.length > 0) {
+      instructions.push(`Templates in use: ${changedIds.join(', ')}. Restore the original IDs and execution modes, or use a new ID for a different execution mode.`);
+    }
+    if (missingAtStartupIds.length > 0) {
+      instructions.push(`Templates missing at startup: ${missingAtStartupIds.join(', ')}. Restore the original files and restart Garcon to recover those servers.`);
+    }
+    throw new ConflictError(instructions.join(' '), { changedIds, missingAtStartupIds });
+  }
+
+  private async scanTemplates(strict: boolean): Promise<Map<string, Template>> {
+    let entries;
+    try {
+      entries = await readdir(this.templatesDir, { withFileTypes: true });
+    } catch {
+      throw new FileSystemError('Could not read the templates directory');
     }
 
+    const candidate = new Map<string, Template>();
+    const issues: { file: string; reason: string }[] = [];
+    for (const entry of entries) {
+      if (!entry.isFile() || !entry.name.endsWith('.yaml')) continue;
+
+      let reason = 'Could not read file';
+      try {
+        const contents = await readFile(path.join(this.templatesDir, entry.name), 'utf8');
+        reason = 'Invalid YAML';
+        const document = parseDocument(contents, { prettyErrors: false });
+        if (document.errors.length > 0) {
+          issues.push({ file: entry.name, reason });
+          continue;
+        }
+        if (document.warnings.length > 0) {
+          logger.warn({ file: entry.name }, 'Template contains YAML warnings');
+        }
+        // Silencing the parser itself would also suppress its multiple-document error.
+        document.options.logLevel = 'silent';
+        const data: unknown = document.toJS();
+        reason = 'Template does not match the schema';
+        const template = TemplateSchema.parse(data);
+        candidate.set(template.id, template);
+      } catch {
+        issues.push({ file: entry.name, reason });
+      }
+    }
+    if (strict && issues.length > 0) {
+      throw new ValidationError('Some template files could not be loaded', { issues });
+    }
+    for (const issue of issues) {
+      logger.error(issue, 'Failed to load template');
+    }
+    return candidate;
+  }
+
+  startWatching(): void {
+    if (this.watcher) return;
+
+    let watcher: FSWatcher;
+    try {
+      watcher = watch(this.templatesDir, { persistent: false });
+    } catch {
+      logger.warn({ directory: this.templatesDir }, 'Could not watch templates directory');
+      return;
+    }
+    this.watcher = watcher;
+    let pending = false;
+    let dirty = false;
+
+    const scheduleReload = () => {
+      if (this.watcher !== watcher) return;
+      if (pending) {
+        dirty = true;
+        return;
+      }
+
+      clearTimeout(this.watchTimer);
+      this.watchTimer = setTimeout(() => {
+        this.watchTimer = undefined;
+        pending = true;
+        void this.reloadTemplates('filesystem watcher').catch(() => {}).finally(() => {
+          pending = false;
+          if (!dirty) return;
+          dirty = false;
+          scheduleReload();
+        });
+      }, 250);
+      this.watchTimer.unref();
+    };
+
+    watcher.on('change', (event, filename) => {
+      if (event === 'rename' || !filename || filename.toString().endsWith('.yaml')) {
+        scheduleReload();
+      }
+    });
+    watcher.on('error', () => {
+      if (this.watcher !== watcher) return;
+      logger.warn({ directory: this.templatesDir }, 'Template watcher stopped after an error');
+      this.stopWatching();
+    });
+  }
+
+  stopWatching(): void {
+    const watcher = this.watcher;
+    this.watcher = undefined;
+    clearTimeout(this.watchTimer);
+    this.watchTimer = undefined;
+    watcher?.close();
+  }
+
+  async listTemplates(): Promise<TemplateResponse[]> {
+    await this.initializeDefaultTemplates();
     return Array.from(this.templates.values()).map(this.toResponse);
   }
 
   async getTemplate(id: string): Promise<Template> {
-    if (!this.initialized) {
-      await this.initializeDefaultTemplates();
-    }
-
+    await this.initializeDefaultTemplates();
     const template = this.templates.get(id);
     if (!template) {
       throw new NotFoundError('Template', id);

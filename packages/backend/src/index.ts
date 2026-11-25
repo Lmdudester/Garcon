@@ -31,6 +31,8 @@ async function main() {
     await serverService.initialize();
     logger.info('Server service initialized');
 
+    void templateService.startRuntimeReloads(() => serverService.getReferencedTemplateIds()).catch(() => {});
+
     await webAppService.initialize();
     logger.info('Web app service initialized');
 

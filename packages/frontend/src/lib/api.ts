@@ -108,6 +108,7 @@ export const api = {
   templates: {
     list: () => get<TemplateResponse[]>('/templates'),
     get: (id: string) => get<TemplateResponse>(`/templates/${id}`),
+    reload: () => post<{ count: number }>('/templates/reload'),
   },
   backups: {
     list: (serverId: string) => get<BackupResponse[]>(`/servers/${serverId}/backups`),

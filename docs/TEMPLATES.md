@@ -15,7 +15,7 @@ The selected community image's documentation remains the source of truth for its
 5. Add one numeric <code>defaultPorts</code> entry for every documented container port and protocol. Do not copy the Compose host port into the template.
 6. Omit <code>execution.command</code> first so the image's own <code>ENTRYPOINT</code>, <code>CMD</code>, and <code>WORKDIR</code> run. Add it only when an explicit Docker Cmd override is required.
 7. Add <code>requiredFiles</code> only for files or directories that must already exist in the selected import folder.
-8. Save a direct <code>.yaml</code> file under <code>GARCON_DATA_DIR/templates</code> (normally <code>garcon-data/templates</code>), restart the backend, import a test folder, and inspect the output.
+8. Save a direct <code>.yaml</code> file under <code>GARCON_DATA_DIR/templates</code> (normally <code>garcon-data/templates</code>). Open **Add Server**, import a test folder with the new template, and inspect the output.
 
 If two server variants need different fixed environment values, create two templates. A template is shared configuration, not a per-server environment form.
 
@@ -32,7 +32,11 @@ garcon-data/
     └── my-community-game.yaml
 ~~~
 
-<code>GARCON_DATA_DIR</code> defaults to <code>garcon-data</code>; nested files are ignored. Invalid YAML or schema-invalid files are skipped and logged. IDs must be unique; duplicate IDs are not a safe way to create variants because the loader overwrites the earlier entry. Adding or changing a file requires a backend restart.
+<code>GARCON_DATA_DIR</code> defaults to <code>garcon-data</code>. Garcon scans direct <code>.yaml</code> files and ignores nested files. Give each template a unique ID. With duplicate IDs, the loader overwrites the earlier entry.
+
+Garcon watches the directory and reloads valid additions and edits while it runs. If the watcher misses a change, open or reopen **Add Server** to reload templates from disk. API clients can use <code>POST /api/templates/reload</code> and then <code>GET /api/templates</code>.
+
+Startup logs and skips invalid files. If a runtime reload encounters an invalid file or cannot read the directory, Garcon keeps the previous catalog. Check the backend logs, correct the files, and reopen **Add Server**. Garcon also rejects a reload that removes a template used by an imported server or changes that template's execution mode. Restore its original ID and mode and use a new ID for a different mode. If an existing server's template was already missing at startup, restore its original file and mode before restarting Garcon to recover that server.
 
 The built-in templates are useful patterns, not guarantees about an image's current contract. Compare the Docker V Rising template and native Windows V Rising template with the selected game's current documentation before copying their paths or ports.
 
@@ -452,11 +456,11 @@ On native stop, Garcon attempts RCON only when <code>execution.rcon.enabled</cod
 
 | Symptom | Diagnosis/check | Fix |
 | --- | --- | --- |
-| Template is missing | Confirm it is a direct <code>.yaml</code> under <code>GARCON_DATA_DIR/templates</code>, the ID is unique, and backend console/container logs contain no schema error. | Correct the file or ID and restart the backend. |
+| Template is missing | Confirm it is a direct <code>.yaml</code> under <code>GARCON_DATA_DIR/templates</code>, the ID is unique, and backend console/container logs contain no schema error. | Correct the file or ID and reopen **Add Server** to retry the reload. |
 | Container never starts or image pull fails | Check backend stdout/stderr or container logs, Docker availability, and run <code>docker pull</code> with the exact <code>baseImage</code>. | Correct the image reference/tag or Docker access. |
 | Image loses data or resets settings | Compare <code>docker.mountPath</code> with the image's documented persistent-data target. | Use the exact path and re-import/copy data as required. |
 | Image starts and exits around its command | Compare Entrypoint form and WORKDIR with Garcon's Cmd behavior. Find it with <code>docker ps -a --filter label=garcon.serverId=&lt;server-id&gt;</code> and inspect <code>docker logs &lt;container-name&gt;</code>. | Remove <code>execution.command</code> or provide only the command text the Entrypoint expects; never paste a full <code>docker run</code>. |
-| Environment has no effect | Compare spelling/case and format with pinned image docs; check for <code>env_file</code> or host placeholders. | Put the resolved literal under <code>docker.environment</code> and restart. |
+| Environment has no effect | Compare spelling/case and format with pinned image docs; check for <code>env_file</code> or host placeholders. | Put the resolved literal under <code>docker.environment</code> and reload the template. Restart the game server to apply the setting to its next launch. |
 | Required-file error | Check the path relative to the selected import folder. | Add the file or remove it from <code>requiredFiles</code> if unnecessary. |
 | Permission denied under non-root | Check <code>execution.requiresNonRoot</code>, expected UID, and mounted-file ownership. | Disable only when safe or prepare files for <code>1000:1000</code>. |
 | Port conflict/unreachable server | Check each explicit host/container/protocol mapping and Docker logs; do not use ranges or host networking. | Choose an available host port and keep one entry per container port. |
@@ -482,4 +486,4 @@ Native output is at <code>GARCON_DATA_DIR/logs/&lt;server-id&gt;.log</code>.
 - [ ] <code>requiredFiles</code> paths are relative to the import folder and present.
 - [ ] Every unsupported Compose item was translated with a supported field or documented with its consequence.
 - [ ] Separate templates are used for separate fixed environment variants.
-- [ ] The file is direct <code>.yaml</code> under the configured templates directory and the backend will be restarted.
+- [ ] The file is a direct <code>.yaml</code> under the configured templates directory and appears in **Add Server**.

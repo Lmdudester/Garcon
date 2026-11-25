@@ -13,6 +13,7 @@ import { backupRoutes } from './routes/backup.routes.js';
 import { websocketRoutes } from './routes/websocket.routes.js';
 import { webAppRoutes } from './routes/web-app.routes.js';
 import { errorHandler } from './middleware/error-handler.js';
+import { templateService } from './services/template.service.js';
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -30,6 +31,9 @@ export async function buildApp() {
   await app.register(websocket);
 
   app.setErrorHandler(errorHandler);
+  app.addHook('onClose', async () => {
+    templateService.stopWatching();
+  });
 
   await app.register(healthRoutes, { prefix: '/api' });
   await app.register(serverRoutes, { prefix: '/api' });
